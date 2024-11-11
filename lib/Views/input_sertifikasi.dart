@@ -305,7 +305,19 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+       body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Image.asset(
+              'assets/backgroundbuttom.png', // Path to your footer image
+              fit: BoxFit.cover,
+              height: 110, // Adjust the height if necessary
+            ),
+          ),
+      SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -443,9 +455,12 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               ),
               child: const Text('Simpan'),
             ),
-          ],
-        ),
+        ],
       ),
+    ),
+  ],
+),
+
     );
   }
 }

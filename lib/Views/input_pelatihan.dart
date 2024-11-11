@@ -2,28 +2,13 @@ import 'dart:convert'; // For base64 encoding
 // import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 
-// void main() {
-//   runApp(const MyApp());
-// }
+// Membuat instance Dio untuk melakukan permintaan HTTP
+final dio = Dio();
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       title: 'Input Pelatihan',
-//       theme: ThemeData(
-//         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B2F9F)),
-//         useMaterial3: true,
-//       ),
-//       home: const InputPelatihan(title: 'SERTIPEDIA'),
-//     );
-//   }
-// }
+// Daftar untuk menyimpan semua data yang diambil dari API
+var all_data = [];
 
 class InputPelatihan extends StatefulWidget {
   const InputPelatihan({super.key, required this.title});
@@ -302,143 +287,158 @@ class _InputPelatihanState extends State<InputPelatihan> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Input Pelatihan',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0B2F9F),
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Image.asset(
+              'assets/backgroundbuttom.png', // Path to your footer image
+              fit: BoxFit.cover,
+              height: 110, // Adjust the height if necessary
+            ),
+          ),
+    SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Input Pelatihan',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0B2F9F),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _namaPelatihanController,
+            decoration: const InputDecoration(labelText: 'Nama Pelatihan'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedIdMk,
+            items: _idMataKuliahOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedIdMk = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'ID Mata Kuliah'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedIdBidmin,
+            items: _idBidangMinatOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedIdBidmin = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'ID Bidang Minat'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedVendor,
+            items: _idVendorOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedVendor = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'ID Vendor'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedIdPeriode,
+            items: _idPeriodeOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedIdPeriode = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'ID Periode'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedJenisPelatihan,
+            items: _jenisPelatihanOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedJenisPelatihan = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'Jenis Pelatihan'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedLevelPelatihan,
+            items: _levelPelatihanOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedLevelPelatihan = newValue;
+              });
+            },
+            decoration: const InputDecoration(labelText: 'Kategori'),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _uploadPhoto,
+            icon: const Icon(Icons.upload),
+            label: const Text('Upload Pelatihan'),
+          ),
+          if (_base64Image != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Image.memory(
+                base64Decode(_base64Image!),
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _namaPelatihanController,
-              decoration: const InputDecoration(labelText: 'Nama Pelatihan'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _saveData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0B2F9F), // Button color
+              foregroundColor: Colors.white, // Text color
             ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdMk,
-              items: _idMataKuliahOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdMk = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Mata Kuliah'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdBidmin,
-              items: _idBidangMinatOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdBidmin = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Bidang Minat'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedVendor,
-              items: _idVendorOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedVendor = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Vendor'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdPeriode,
-              items: _idPeriodeOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdPeriode = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Periode'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedJenisPelatihan,
-              items: _jenisPelatihanOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedJenisPelatihan = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'Jenis Pelatihan'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedLevelPelatihan,
-              items: _levelPelatihanOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedLevelPelatihan = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'Kategori'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _uploadPhoto,
-              icon: const Icon(Icons.upload),
-              label: const Text('Upload Pelatihan'),
-            ),
-            if (_base64Image != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Image.memory(
-                  base64Decode(_base64Image!),
-                  width: 150,
-                  height: 150,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saveData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B2F9F), // Button color
-                foregroundColor: Colors.white, // Text color
-              ),
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
+            child: const Text('Simpan'),
+          ),
+        ],
       ),
+    ),
+  ],
+),
+
     );
   }
 }
