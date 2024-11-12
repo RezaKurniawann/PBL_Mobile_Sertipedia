@@ -246,21 +246,20 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'search...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      fillColor: Colors.grey[300],
+                      filled: true,
+                    ),
                     onChanged: (value) {
                       setState(() {
-                        _searchQuery = value; // Update the search query
+                        _searchQuery = value.toLowerCase();
                       });
                     },
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Search',
-                      filled: true,
-                      fillColor: Colors.grey[300],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 10), // Space between search bar and table

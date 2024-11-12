@@ -9,5 +9,3 @@ export 'package:sertipedia/Views/surat_tugas.dart';
 export 'package:sertipedia/Views/input_pelatihan.dart';
 export 'package:sertipedia/Views/input_sertifikasi.dart';
 export 'package:sertipedia/login.dart';
-
-

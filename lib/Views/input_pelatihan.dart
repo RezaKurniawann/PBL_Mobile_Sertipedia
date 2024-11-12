@@ -2,13 +2,8 @@ import 'dart:convert'; // For base64 encoding
 // import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
-// Membuat instance Dio untuk melakukan permintaan HTTP
-final dio = Dio();
-
-// Daftar untuk menyimpan semua data yang diambil dari API
-var all_data = [];
 
 class InputPelatihan extends StatefulWidget {
   const InputPelatihan({super.key, required this.title});
@@ -21,23 +16,17 @@ class InputPelatihan extends StatefulWidget {
 class _InputPelatihanState extends State<InputPelatihan> {
   DateTime? _selectedDate;
   final TextEditingController _namaPelatihanController =
-      TextEditingController();
+  TextEditingController();
+  final TextEditingController _waktuPelatihanController =
+  TextEditingController();
 
   // Dropdown options
-  final List<String> _idMataKuliahOptions = ['MK001', 'MK002', 'MK003'];
-  final List<String> _idBidangMinatOptions = ['BM001', 'BM002', 'BM003'];
-  final List<String> _idPeriodeOptions = ['P2023', 'P2024', 'P2025'];
-  final List<String> _jenisPelatihanOptions = ['DataScience', 'Jaringan'];
-  final List<String> _idVendorOptions = ['V001', 'V002', 'V003'];
-  final List<String> _levelPelatihanOptions = ['Nasional', 'Internal'];
+  final List<String> _levelPelatihanOptions = ['Nasional', 'Internasional'];
+  final List<String> _VendorOptions = ['Vendor A', 'Vendor B', 'Vendor C'];
 
   // Selected values for dropdowns
-  String? _selectedIdMk;
-  String? _selectedIdBidmin;
-  String? _selectedIdPeriode;
-  String? _selectedJenisPelatihan;
-  String? _selectedVendor;
   String? _selectedLevelPelatihan;
+  String? _selectedVendor;
 
   // Variable to store the base64-encoded image
   String? _base64Image;
@@ -68,7 +57,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                    await picker.pickImage(source: ImageSource.camera);
+                await picker.pickImage(source: ImageSource.camera);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -82,7 +71,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                    await picker.pickImage(source: ImageSource.gallery);
+                await picker.pickImage(source: ImageSource.gallery);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -99,16 +88,40 @@ class _InputPelatihanState extends State<InputPelatihan> {
     );
   }
 
+  void _showConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi'),
+          content: const Text('Apakah Anda yakin ingin menyimpan data?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                _saveData(); // Call the save function
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _saveData() {
     // Logic to save the data
     String savedData = '''
     Nama Pelatihan: ${_namaPelatihanController.text}
-    Mata Kuliah: $_selectedIdMk
-    Bidang Minat: $_selectedIdBidmin
-    Periode: $_selectedIdPeriode
-    Jenis Pelatihan: $_selectedJenisPelatihan
-    Vendor: $_selectedVendor    
-    Jenis Pelatihan: $_selectedLevelPelatihan
+    Waktu: ${_waktuPelatihanController.text}
+    Level Pelatihan: $_selectedLevelPelatihan
+    Vendor: $_selectedVendor
     Tanggal Pelaksanaan: $_selectedDate
     ''';
     print(savedData);
@@ -117,6 +130,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
   @override
   void dispose() {
     _namaPelatihanController.dispose();
+    _waktuPelatihanController.dispose();
     super.dispose();
   }
 
@@ -172,7 +186,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
               ListTile(
                 leading: const Icon(Icons.home, color: Colors.white),
                 title:
-                    const Text('Home', style: TextStyle(color: Colors.white)),
+                const Text('Home', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/homepage');
@@ -230,7 +244,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
               ),
               ExpansionTile(
                 leading:
-                    const Icon(Icons.workspace_premium, color: Colors.white),
+                const Icon(Icons.workspace_premium, color: Colors.white),
                 title: const Text('Input Data',
                     style: TextStyle(color: Colors.white)),
                 children: [
@@ -254,7 +268,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
               ),
               ListTile(
                 leading:
-                    const Icon(Icons.notifications_active, color: Colors.white),
+                const Icon(Icons.notifications_active, color: Colors.white),
                 title: const Text('Notifikasi',
                     style: TextStyle(color: Colors.white)),
                 onTap: () {
@@ -276,7 +290,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.white),
                 title:
-                    const Text('Logout', style: TextStyle(color: Colors.white)),
+                const Text('Logout', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(
@@ -287,157 +301,108 @@ class _InputPelatihanState extends State<InputPelatihan> {
           ),
         ),
       ),
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Image.asset(
-              'assets/backgroundbuttom.png', // Path to your footer image
-              fit: BoxFit.cover,
-              height: 110, // Adjust the height if necessary
-            ),
-          ),
-    SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Input Pelatihan',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0B2F9F),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _namaPelatihanController,
-            decoration: const InputDecoration(labelText: 'Nama Pelatihan'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedIdMk,
-            items: _idMataKuliahOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedIdMk = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'ID Mata Kuliah'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedIdBidmin,
-            items: _idBidangMinatOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedIdBidmin = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'ID Bidang Minat'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedVendor,
-            items: _idVendorOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedVendor = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'ID Vendor'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedIdPeriode,
-            items: _idPeriodeOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedIdPeriode = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'ID Periode'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedJenisPelatihan,
-            items: _jenisPelatihanOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedJenisPelatihan = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'Jenis Pelatihan'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedLevelPelatihan,
-            items: _levelPelatihanOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _selectedLevelPelatihan = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'Kategori'),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _uploadPhoto,
-            icon: const Icon(Icons.upload),
-            label: const Text('Upload Pelatihan'),
-          ),
-          if (_base64Image != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Image.memory(
-                base64Decode(_base64Image!),
-                width: 150,
-                height: 150,
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 110, // Adjust as necessary for your image height
+              width: double.infinity,
+              child: Image.asset(
+                'assets/backgroundbuttom.png',
                 fit: BoxFit.cover,
               ),
             ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _saveData,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0B2F9F), // Button color
-              foregroundColor: Colors.white, // Text color
+          ),
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Input Pelatihan',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0B2F9F),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _namaPelatihanController,
+                  decoration: const InputDecoration(labelText: 'Nama Pelatihan'),
+                ),
+                TextField(
+                  controller: _waktuPelatihanController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(labelText: 'Waktu Pelatihan'),
+                ),
+                DropdownButtonFormField<String>(
+                  value: _selectedVendor,
+                  items: _VendorOptions.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedVendor = newValue;
+                    });
+                  },
+                  decoration: const InputDecoration(labelText: 'Vendor Pelatihan'),
+                ),
+                DropdownButtonFormField<String>(
+                  value: _selectedLevelPelatihan,
+                  items: _levelPelatihanOptions.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedLevelPelatihan = newValue;
+                    });
+                  },
+                  decoration: const InputDecoration(labelText: 'Level Pelatihan'),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _uploadPhoto,
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Upload Pelatihan'),
+                ),
+                if (_base64Image != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Image.memory(
+                      base64Decode(_base64Image!),
+                      width: 150,
+                      height: 150,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    _showConfirmationDialog(context); // Show confirmation dialog
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B2F9F), // Button color
+                    foregroundColor: Colors.white, // Text color
+                  ),
+                  child: const Text('Simpan'),
+                ),
+              ],
             ),
-            child: const Text('Simpan'),
           ),
         ],
       ),
-    ),
-  ],
-),
+
 
     );
   }

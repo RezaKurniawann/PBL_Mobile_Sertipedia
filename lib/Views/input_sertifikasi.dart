@@ -3,26 +3,21 @@ import 'dart:convert'; // For base64 encoding
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-// void main() {
-//   runApp(const MyApp());
-// }
+final TextEditingController _namaSertifikasiController = TextEditingController();
+final TextEditingController _noSertifikasiController = TextEditingController();
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
+final List<String> _jenisSertifikasiOptions = ['Profesi', 'Keahlian'];
+final List<String> _VendorOptions = ['Vendor A', 'Vendor B', 'Vendor C'];
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       title: 'Input Sertifikasi',
-//       theme: ThemeData(
-//         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B2F9F)),
-//         useMaterial3: true,
-//       ),
-//       home: const InputSertifikasi(title: 'SERTIPEDIA'),
-//     );
-//   }
-// }
+String? _selectedJenisSertifikasi;
+String? _selectedVendor;
+String? _base64Image;
+
+// URL dasar untuk API
+String url_domain = "http://api:8000/";
+String url_all_data = url_domain + "api/all_data";
+String url_create_data = url_domain + "api/create_data";
+String url_show_data = url_domain + "api/show_data";
 
 class InputSertifikasi extends StatefulWidget {
   const InputSertifikasi({super.key, required this.title});
@@ -33,45 +28,6 @@ class InputSertifikasi extends StatefulWidget {
 }
 
 class _InputSertifikasiState extends State<InputSertifikasi> {
-  DateTime? _selectedDate;
-  final TextEditingController _namaSertifikasiController =
-      TextEditingController();
-  final TextEditingController _noSertifikasiController =
-      TextEditingController();
-
-  // Dropdown options
-  final List<String> _idKategoriOptions = ['K001', 'K002', 'K003'];
-  final List<String> _idMataKuliahOptions = ['MK001', 'MK002', 'MK003'];
-  final List<String> _idBidangMinatOptions = ['BM001', 'BM002', 'BM003'];
-  final List<String> _idPeriodeOptions = ['P2023', 'P2024', 'P2025'];
-  final List<String> _jenisSertifikasiOptions = ['Internal', 'External'];
-  final List<String> _idVendorOptions = ['V001', 'V002', 'V003'];
-
-  // Selected values for dropdowns
-  String? _selectedIdKategori;
-  String? _selectedIdMk;
-  String? _selectedIdBidmin;
-  String? _selectedIdPeriode;
-  String? _selectedJenisSertifikasi;
-  String? _selectedVendor;
-
-  // Variable to store the base64-encoded image
-  String? _base64Image;
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2099),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
-
   Future<void> _uploadPhoto() async {
     final ImagePicker picker = ImagePicker();
     showDialog(
@@ -84,7 +40,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                    await picker.pickImage(source: ImageSource.camera);
+                await picker.pickImage(source: ImageSource.camera);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -98,7 +54,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                    await picker.pickImage(source: ImageSource.gallery);
+                await picker.pickImage(source: ImageSource.gallery);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -115,18 +71,40 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
     );
   }
 
+  void _showConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi'),
+          content: const Text('Apakah Anda yakin ingin menyimpan data?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                _saveData(); // Call the save function
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _saveData() {
     // Logic to save the data
     String savedData = '''
     Nama Sertifikasi: ${_namaSertifikasiController.text}
     No Sertifikasi: ${_noSertifikasiController.text}
-    Kategori: $_selectedIdKategori
-    Mata Kuliah: $_selectedIdMk
-    Bidang Minat: $_selectedIdBidmin
-    Periode: $_selectedIdPeriode
     Jenis Sertifikasi: $_selectedJenisSertifikasi
     Vendor: $_selectedVendor
-    Tanggal Pelaksanaan: $_selectedDate
     ''';
     print(savedData);
   }
@@ -190,7 +168,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               ListTile(
                 leading: const Icon(Icons.home, color: Colors.white),
                 title:
-                    const Text('Home', style: TextStyle(color: Colors.white)),
+                const Text('Home', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/homepage');
@@ -248,7 +226,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               ),
               ExpansionTile(
                 leading:
-                    const Icon(Icons.workspace_premium, color: Colors.white),
+                const Icon(Icons.workspace_premium, color: Colors.white),
                 title: const Text('Input Data',
                     style: TextStyle(color: Colors.white)),
                 children: [
@@ -272,7 +250,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               ),
               ListTile(
                 leading:
-                    const Icon(Icons.notifications_active, color: Colors.white),
+                const Icon(Icons.notifications_active, color: Colors.white),
                 title: const Text('Notifikasi',
                     style: TextStyle(color: Colors.white)),
                 onTap: () {
@@ -294,7 +272,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.white),
                 title:
-                    const Text('Logout', style: TextStyle(color: Colors.white)),
+                const Text('Logout', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(
@@ -305,8 +283,10 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
           ),
         ),
       ),
-       body: Stack(
+      resizeToAvoidBottomInset: false,
+      body: Stack(
         children: [
+          // Background image at the bottom of the screen
           Positioned(
             left: 0,
             right: 0,
@@ -317,150 +297,96 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               height: 110, // Adjust the height if necessary
             ),
           ),
-      SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Input Sertifikasi',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0B2F9F),
+
+          // Scrollable content with padding to avoid overlapping the background image
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0).copyWith(bottom: 130.0), // Extra bottom padding to avoid overlap with background
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Input Sertifikasi',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B2F9F),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _namaSertifikasiController,
+                    decoration: const InputDecoration(labelText: 'Nama Sertifikasi'),
+                  ),
+                  TextField(
+                    controller: _noSertifikasiController,
+                    decoration: const InputDecoration(labelText: 'No. Sertifikasi'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: _selectedVendor,
+                    items: _VendorOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedVendor = newValue;
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Vendor'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: _selectedJenisSertifikasi,
+                    items: _jenisSertifikasiOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedJenisSertifikasi = newValue;
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Jenis Sertifikasi'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _uploadPhoto,
+                    icon: const Icon(Icons.upload),
+                    label: const Text('Upload Sertifikasi'),
+                  ),
+                  if (_base64Image != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Image.memory(
+                        base64Decode(_base64Image!),
+                        width: 150,
+                        height: 150,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      _showConfirmationDialog(context); // Show confirmation dialog
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0B2F9F), // Button color
+                      foregroundColor: Colors.white, // Text color
+                    ),
+                    child: const Text('Simpan'),
+                  ),
+
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _namaSertifikasiController,
-              decoration: const InputDecoration(labelText: 'Nama Sertifikasi'),
-            ),
-            TextField(
-              controller: _noSertifikasiController,
-              decoration: const InputDecoration(labelText: 'No. Sertifikasi'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdKategori,
-              items: _idKategoriOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdKategori = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'Kategori'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdMk,
-              items: _idMataKuliahOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdMk = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Mata Kuliah'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdBidmin,
-              items: _idBidangMinatOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdBidmin = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Bidang Minat'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedVendor,
-              items: _idVendorOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedVendor = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Vendor'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedIdPeriode,
-              items: _idPeriodeOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedIdPeriode = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'ID Periode'),
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedJenisSertifikasi,
-              items: _jenisSertifikasiOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedJenisSertifikasi = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'Jenis Sertifikasi'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _uploadPhoto,
-              icon: const Icon(Icons.upload),
-              label: const Text('Upload Sertifikasi'),
-            ),
-            if (_base64Image != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Image.memory(
-                  base64Decode(_base64Image!),
-                  width: 150,
-                  height: 150,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saveData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B2F9F), // Button color
-                foregroundColor: Colors.white, // Text color
-              ),
-              child: const Text('Simpan'),
-            ),
+          ),
         ],
       ),
-    ),
-  ],
-),
-
     );
   }
 }
