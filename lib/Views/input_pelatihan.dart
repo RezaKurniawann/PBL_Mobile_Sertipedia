@@ -1,9 +1,11 @@
-import 'dart:convert'; // For base64 encoding
+import 'dart:convert';
 // import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
-
+import 'package:sertipedia/Template/drawer.dart';
+import 'package:sertipedia/Api/api_services.dart';
+import 'package:dio/dio.dart';
 
 class InputPelatihan extends StatefulWidget {
   const InputPelatihan({super.key, required this.title});
@@ -14,35 +16,67 @@ class InputPelatihan extends StatefulWidget {
 }
 
 class _InputPelatihanState extends State<InputPelatihan> {
-  DateTime? _selectedDate;
-  final TextEditingController _namaPelatihanController =
-  TextEditingController();
-  final TextEditingController _waktuPelatihanController =
-  TextEditingController();
-
-  // Dropdown options
+  List<dynamic> vendorPelatihanList = [];
+  List<dynamic> PelatihanList = [];
   final List<String> _levelPelatihanOptions = ['Nasional', 'Internasional'];
-  final List<String> _VendorOptions = ['Vendor A', 'Vendor B', 'Vendor C'];
 
-  // Selected values for dropdowns
+  String? _selectedVendorPelatihan;
+  String? _selectedPelatihan;
   String? _selectedLevelPelatihan;
-  String? _selectedVendor;
-
-  // Variable to store the base64-encoded image
   String? _base64Image;
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2099),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+
+  final TextEditingController _periodePelatihanController =
+      TextEditingController();
+  final TextEditingController _pelatihanSearchController = TextEditingController();
+  final TextEditingController _vendorSearchController = TextEditingController();
+
+  // Ambil data Pelatihan
+  Future<void> _fetchVendorPelatihan() async {
+    try {
+      final response =
+          await Dio().get(url_vendors); // Menggunakan Dio untuk request GET
+      if (response.statusCode == 200) {
+        // Menyaring vendor yang memiliki kategori pelatihan
+        var vendors = response.data as List;
+        var filteredVendors = vendors.where((vendor) {
+          return vendor['kategori'] != null &&
+              vendor['kategori'].contains('Pelatihan');
+        }).toList();
+
+        setState(() {
+          vendorPelatihanList =
+              filteredVendors; // Menyimpan data yang telah difilter
+        });
+      } else {
+        print("Gagal memuat data Pelatihan");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Pelatihan: $e");
     }
+  }
+
+  Future<void> _fetchNamaPelatihan() async {
+    try {
+      final response =
+          await Dio().get(url_pelatihans); // URL API untuk pelatihan
+      if (response.statusCode == 200) {
+        setState(() {
+          PelatihanList = response.data as List; // Simpan semua field
+        });
+      } else {
+        print("Gagal memuat data Pelatihan");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Pelatihan: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVendorPelatihan(); // Mengambil data Pelatihan saat widget diinisialisasi
+    _fetchNamaPelatihan();
   }
 
   Future<void> _uploadPhoto() async {
@@ -57,7 +91,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                await picker.pickImage(source: ImageSource.camera);
+                    await picker.pickImage(source: ImageSource.camera);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -71,7 +105,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                await picker.pickImage(source: ImageSource.gallery);
+                    await picker.pickImage(source: ImageSource.gallery);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -104,8 +138,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
             ),
             TextButton(
               onPressed: () {
-                _saveData(); // Call the save function
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Ya'),
             ),
@@ -115,22 +148,12 @@ class _InputPelatihanState extends State<InputPelatihan> {
     );
   }
 
-  void _saveData() {
-    // Logic to save the data
-    String savedData = '''
-    Nama Pelatihan: ${_namaPelatihanController.text}
-    Waktu: ${_waktuPelatihanController.text}
-    Level Pelatihan: $_selectedLevelPelatihan
-    Vendor: $_selectedVendor
-    Tanggal Pelaksanaan: $_selectedDate
-    ''';
-    print(savedData);
-  }
-
   @override
   void dispose() {
-    _namaPelatihanController.dispose();
-    _waktuPelatihanController.dispose();
+    _pelatihanSearchController.dispose();
+    _vendorSearchController.dispose();
+    _periodePelatihanController.dispose();
+  
     super.dispose();
   }
 
@@ -149,158 +172,15 @@ class _InputPelatihanState extends State<InputPelatihan> {
         titleSpacing: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Text('SERTIPEDIA',
-                style: TextStyle(
+          children: [
+            Text(widget.title, // Gunakan title yang diteruskan dari route
+                style: const TextStyle(
                     fontWeight: FontWeight.w900, color: Colors.white)),
-            Padding(padding: EdgeInsets.only(right: 17.5)),
+            const Padding(padding: EdgeInsets.only(right: 17.5)),
           ],
         ),
       ),
-      drawer: Drawer(
-        child: Container(
-          color: const Color(0xFF0B2F9F),
-          child: ListView(
-            padding: const EdgeInsets.only(top: 0),
-            children: <Widget>[
-              SizedBox(
-                height: 89,
-                child: DrawerHeader(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0B2F9F),
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 0),
-                      child: IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.home, color: Colors.white),
-                title:
-                const Text('Home', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/homepage');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person, color: Colors.white),
-                title: const Text('Profile',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/profile');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bar_chart, color: Colors.white),
-                title: const Text('Statistik',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/statistik');
-                },
-              ),
-              ExpansionTile(
-                leading: const Icon(Icons.check_circle, color: Colors.white),
-                title: const Text('Verifikasi',
-                    style: TextStyle(color: Colors.white)),
-                children: [
-                  ListTile(
-                    title: const Text('Sertifikasi',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/verifikasi_sertifikasi');
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Pelatihan',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/verifikasi_pelatihan');
-                    },
-                  ),
-                ],
-              ),
-              ListTile(
-                leading: const Icon(Icons.school, color: Colors.white),
-                title: const Text('Kompetensi Prodi',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/kompetensi_prodi');
-                },
-              ),
-              ExpansionTile(
-                leading:
-                const Icon(Icons.workspace_premium, color: Colors.white),
-                title: const Text('Input Data',
-                    style: TextStyle(color: Colors.white)),
-                children: [
-                  ListTile(
-                    title: const Text('Sertifikasi',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/input_sertifikasi');
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Pelatihan',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/input_pelatihan');
-                    },
-                  ),
-                ],
-              ),
-              ListTile(
-                leading:
-                const Icon(Icons.notifications_active, color: Colors.white),
-                title: const Text('Notifikasi',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/notifikasi');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.file_download,
-                    color: Colors.white), // Icon for Download Surat
-                title: const Text('Download Surat',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(
-                      context, '/surat_tugas'); // Navigate to Login on logout
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.white),
-                title:
-                const Text('Logout', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(
-                      context, '/login'); // Navigate to Login on logout
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: const DrawerLayout(),
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
@@ -329,32 +209,72 @@ class _InputPelatihanState extends State<InputPelatihan> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _namaPelatihanController,
-                  decoration: const InputDecoration(labelText: 'Nama Pelatihan'),
-                ),
-                TextField(
-                  controller: _waktuPelatihanController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(labelText: 'Waktu Pelatihan'),
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedVendor,
-                  items: _VendorOptions.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
+                const SizedBox(height: 10),
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return PelatihanList
+                        .where((pelatihan) => pelatihan['nama']
+                            .toString()
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                        .map((pelatihan) => pelatihan['nama'].toString());
+                  },
+                  onSelected: (String selectedPelatihan) {
                     setState(() {
-                      _selectedVendor = newValue;
+                      _selectedPelatihan = selectedPelatihan;
                     });
                   },
-                  decoration: const InputDecoration(labelText: 'Vendor Pelatihan'),
+                  fieldViewBuilder: (BuildContext context,
+                      TextEditingController textEditingController,
+                      FocusNode focusNode,
+                      VoidCallback onFieldSubmitted) {
+                    _pelatihanSearchController.text = _selectedPelatihan ?? '';
+                    return TextField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Nama Pelatihan',
+                      ),
+                    );
+                  },
                 ),
+                const SizedBox(height: 10),
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return vendorPelatihanList
+                        .where((vendor) => vendor['nama']
+                            .toString()
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                        .map((vendor) => vendor['nama'].toString());
+                  },
+                  onSelected: (String selectedVendor) {
+                    setState(() {
+                      _selectedVendorPelatihan = selectedVendor;
+                    });
+                  },
+                  fieldViewBuilder: (BuildContext context,
+                      TextEditingController textEditingController,
+                      FocusNode focusNode,
+                      VoidCallback onFieldSubmitted) {
+                    _vendorSearchController.text =
+                        _selectedVendorPelatihan ?? '';
+                    return TextField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Vendor',
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: _selectedLevelPelatihan,
                   items: _levelPelatihanOptions.map((String value) {
@@ -368,9 +288,17 @@ class _InputPelatihanState extends State<InputPelatihan> {
                       _selectedLevelPelatihan = newValue;
                     });
                   },
-                  decoration: const InputDecoration(labelText: 'Level Pelatihan'),
+                  decoration: const InputDecoration(labelText: 'Level'),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _periodePelatihanController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration:
+                      const InputDecoration(labelText: 'Periode / Tahun'),
+                ),
+                const SizedBox(height: 10),
                 ElevatedButton.icon(
                   onPressed: _uploadPhoto,
                   icon: const Icon(Icons.upload),
@@ -386,10 +314,10 @@ class _InputPelatihanState extends State<InputPelatihan> {
                       fit: BoxFit.cover,
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
-                    _showConfirmationDialog(context); // Show confirmation dialog
+                    _showConfirmationDialog(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B2F9F), // Button color
@@ -402,8 +330,6 @@ class _InputPelatihanState extends State<InputPelatihan> {
           ),
         ],
       ),
-
-
     );
   }
 }

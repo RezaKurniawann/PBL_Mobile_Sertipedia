@@ -1,23 +1,12 @@
-import 'dart:convert'; // For base64 encoding
-// import 'dart:typed_data'; // For Uint8List
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
-final TextEditingController _namaSertifikasiController = TextEditingController();
-final TextEditingController _noSertifikasiController = TextEditingController();
-
-final List<String> _jenisSertifikasiOptions = ['Profesi', 'Keahlian'];
-final List<String> _VendorOptions = ['Vendor A', 'Vendor B', 'Vendor C'];
-
-String? _selectedJenisSertifikasi;
-String? _selectedVendor;
-String? _base64Image;
-
-// URL dasar untuk API
-String url_domain = "http://api:8000/";
-String url_all_data = url_domain + "api/all_data";
-String url_create_data = url_domain + "api/create_data";
-String url_show_data = url_domain + "api/show_data";
+import 'package:flutter/services.dart';
+import 'package:sertipedia/Template/drawer.dart';
+import 'package:sertipedia/Api/api_services.dart';
+import 'package:dio/dio.dart';
+// import 'package:http/http.dart' as http;
 
 class InputSertifikasi extends StatefulWidget {
   const InputSertifikasi({super.key, required this.title});
@@ -28,6 +17,70 @@ class InputSertifikasi extends StatefulWidget {
 }
 
 class _InputSertifikasiState extends State<InputSertifikasi> {
+  List<dynamic> vendorSertifikasiList = [];
+  List<dynamic> SertifikasiList = [];
+  final List<String> _jenisSertifikasiOptions = ['Profesi', 'Keahlian'];
+
+  String? _selectedVendorSertifikasi;
+  String? _selectedSertifikasi;
+  String? _selectedJenisSertifikasi;
+  String? _base64Image;
+
+  final TextEditingController _sertifikasiSearchController =
+      TextEditingController();
+  final TextEditingController _vendorSearchController = TextEditingController();
+  final TextEditingController _periodeSertifikasiController =
+      TextEditingController();
+  final TextEditingController _noSertifikasiController =
+      TextEditingController();
+  
+   // Ambil data Pelatihan
+  Future<void> _fetchVendorSertifikasi() async {
+    try {
+      final response =
+          await Dio().get(url_vendors); 
+      if (response.statusCode == 200) {
+        var vendors = response.data as List;
+        var filteredVendors = vendors.where((vendor) {
+          return vendor['kategori'] != null &&
+              vendor['kategori'].contains('Sertifikasi');
+        }).toList();
+
+        setState(() {
+          vendorSertifikasiList =
+              filteredVendors;
+        });
+      } else {
+        print("Gagal memuat data vendor sertifikasi");
+      }
+    } catch (e) {
+      print("Error saat mengambil data vendor sertifikasi: $e");
+    }
+  }
+
+  Future<void> _fetchSertifikasi() async {
+    try {
+      final response =
+          await Dio().get(url_sertifikasis); 
+      if (response.statusCode == 200) {
+        setState(() {
+          SertifikasiList = response.data as List; 
+        });
+      } else {
+        print("Gagal memuat data sertifikasi");
+      }
+    } catch (e) {
+      print("Error saat mengambil data sertifikasi: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVendorSertifikasi(); 
+    _fetchSertifikasi();
+  }
+
   Future<void> _uploadPhoto() async {
     final ImagePicker picker = ImagePicker();
     showDialog(
@@ -40,7 +93,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                await picker.pickImage(source: ImageSource.camera);
+                    await picker.pickImage(source: ImageSource.camera);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -54,7 +107,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
             TextButton(
               onPressed: () async {
                 final XFile? pickedFile =
-                await picker.pickImage(source: ImageSource.gallery);
+                    await picker.pickImage(source: ImageSource.gallery);
                 if (pickedFile != null) {
                   final bytes = await pickedFile.readAsBytes();
                   setState(() {
@@ -81,14 +134,13 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Batal'),
             ),
             TextButton(
               onPressed: () {
-                _saveData(); // Call the save function
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Ya'),
             ),
@@ -98,20 +150,11 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
     );
   }
 
-  void _saveData() {
-    // Logic to save the data
-    String savedData = '''
-    Nama Sertifikasi: ${_namaSertifikasiController.text}
-    No Sertifikasi: ${_noSertifikasiController.text}
-    Jenis Sertifikasi: $_selectedJenisSertifikasi
-    Vendor: $_selectedVendor
-    ''';
-    print(savedData);
-  }
-
   @override
   void dispose() {
-    _namaSertifikasiController.dispose();
+    _sertifikasiSearchController.dispose();
+    _vendorSearchController.dispose();
+    _periodeSertifikasiController.dispose();
     _noSertifikasiController.dispose();
     super.dispose();
   }
@@ -131,158 +174,15 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
         titleSpacing: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Text('SERTIPEDIA',
+          children: [
+            Text(widget.title, // Gunakan title yang diteruskan dari route
                 style: TextStyle(
                     fontWeight: FontWeight.w900, color: Colors.white)),
             Padding(padding: EdgeInsets.only(right: 17.5)),
           ],
         ),
       ),
-      drawer: Drawer(
-        child: Container(
-          color: const Color(0xFF0B2F9F),
-          child: ListView(
-            padding: const EdgeInsets.only(top: 0),
-            children: <Widget>[
-              SizedBox(
-                height: 89,
-                child: DrawerHeader(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0B2F9F),
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 0),
-                      child: IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.home, color: Colors.white),
-                title:
-                const Text('Home', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/homepage');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person, color: Colors.white),
-                title: const Text('Profile',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/profile');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bar_chart, color: Colors.white),
-                title: const Text('Statistik',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/statistik');
-                },
-              ),
-              ExpansionTile(
-                leading: const Icon(Icons.check_circle, color: Colors.white),
-                title: const Text('Verifikasi',
-                    style: TextStyle(color: Colors.white)),
-                children: [
-                  ListTile(
-                    title: const Text('Sertifikasi',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/verifikasi_sertifikasi');
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Pelatihan',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/verifikasi_pelatihan');
-                    },
-                  ),
-                ],
-              ),
-              ListTile(
-                leading: const Icon(Icons.school, color: Colors.white),
-                title: const Text('Kompetensi Prodi',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/kompetensi_prodi');
-                },
-              ),
-              ExpansionTile(
-                leading:
-                const Icon(Icons.workspace_premium, color: Colors.white),
-                title: const Text('Input Data',
-                    style: TextStyle(color: Colors.white)),
-                children: [
-                  ListTile(
-                    title: const Text('Sertifikasi',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/input_sertifikasi');
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Pelatihan',
-                        style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/input_pelatihan');
-                    },
-                  ),
-                ],
-              ),
-              ListTile(
-                leading:
-                const Icon(Icons.notifications_active, color: Colors.white),
-                title: const Text('Notifikasi',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/notifikasi');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.file_download,
-                    color: Colors.white), // Icon for Download Surat
-                title: const Text('Download Surat',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(
-                      context, '/surat_tugas'); // Navigate to Login on logout
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.white),
-                title:
-                const Text('Logout', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(
-                      context, '/login'); // Navigate to Login on logout
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: const DrawerLayout(),
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
@@ -301,7 +201,9 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
           // Scrollable content with padding to avoid overlapping the background image
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0).copyWith(bottom: 130.0), // Extra bottom padding to avoid overlap with background
+              padding: const EdgeInsets.all(16.0).copyWith(
+                  bottom:
+                      130.0), // Extra bottom padding to avoid overlap with background
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -314,30 +216,74 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _namaSertifikasiController,
-                    decoration: const InputDecoration(labelText: 'Nama Sertifikasi'),
-                  ),
-                  TextField(
-                    controller: _noSertifikasiController,
-                    decoration: const InputDecoration(labelText: 'No. Sertifikasi'),
-                  ),
-                  DropdownButtonFormField<String>(
-                    value: _selectedVendor,
-                    items: _VendorOptions.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
+                  const SizedBox(height: 10),
+                  Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return SertifikasiList.where((sertifikasi) =>
+                              sertifikasi['nama']
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains(
+                                      textEditingValue.text.toLowerCase()))
+                          .map((sertifikasi) => sertifikasi['nama'].toString());
+                    },
+                    onSelected: (String selectedSertifikasi) {
                       setState(() {
-                        _selectedVendor = newValue;
+                        _selectedSertifikasi = selectedSertifikasi;
                       });
                     },
-                    decoration: const InputDecoration(labelText: 'Vendor'),
+                    fieldViewBuilder: (BuildContext context,
+                        TextEditingController textEditingController,
+                        FocusNode focusNode,
+                        VoidCallback onFieldSubmitted) {
+                      _sertifikasiSearchController.text =
+                          _selectedSertifikasi ?? '';
+                      return TextField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Pelatihan',
+                        ),
+                      );
+                    },
                   ),
+                  const SizedBox(height: 10),
+                  Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return vendorSertifikasiList
+                          .where((vendor) => vendor['nama']
+                              .toString()
+                              .toLowerCase()
+                              .contains(textEditingValue.text.toLowerCase()))
+                          .map((vendor) => vendor['nama'].toString());
+                    },
+                    onSelected: (String selectedVendor) {
+                      setState(() {
+                        _selectedVendorSertifikasi = selectedVendor;
+                      });
+                    },
+                    fieldViewBuilder: (BuildContext context,
+                        TextEditingController textEditingController,
+                        FocusNode focusNode,
+                        VoidCallback onFieldSubmitted) {
+                      _vendorSearchController.text =
+                          _selectedVendorSertifikasi ?? '';
+                      return TextField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Vendor',
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _selectedJenisSertifikasi,
                     items: _jenisSertifikasiOptions.map((String value) {
@@ -351,7 +297,18 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                         _selectedJenisSertifikasi = newValue;
                       });
                     },
-                    decoration: const InputDecoration(labelText: 'Jenis Sertifikasi'),
+                    decoration: const InputDecoration(labelText: 'Jenis'),
+                  ),
+                  TextField(
+                    controller: _periodeSertifikasiController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(labelText: 'Periode / Tahun'),
+                  ),
+                  TextField(
+                    controller: _noSertifikasiController,
+                    decoration:
+                        const InputDecoration(labelText: 'No. Sertifikasi'),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
@@ -372,7 +329,8 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      _showConfirmationDialog(context); // Show confirmation dialog
+                      _showConfirmationDialog(
+                          context); // Show confirmation dialog
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0B2F9F), // Button color
@@ -380,7 +338,6 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                     ),
                     child: const Text('Simpan'),
                   ),
-
                 ],
               ),
             ),
