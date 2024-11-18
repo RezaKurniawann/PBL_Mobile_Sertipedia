@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // Untuk JSON parsing
+import 'dart:convert';
 import 'package:sertipedia/Template/drawer.dart';
 
 class KompetensiProdi extends StatefulWidget {
@@ -22,11 +22,10 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
   Future<void> _fetchData() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.240.35:8000/api/kompetensis'),
+        Uri.parse('http://192.168.0.238:8000/api/kompetensis'),
       );
 
       if (response.statusCode == 200) {
-        // Pastikan respons di-cast ke List<dynamic>
         final List<dynamic> jsonData = json.decode(response.body) as List<dynamic>;
         setState(() {
           _data = jsonData.map((item) {
@@ -39,37 +38,6 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
           _isLoading = false;
         });
         print("Data fetched successfully: $_data");
-      } else {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
-        print("Error: ${response.statusCode} - ${response.body}");
-      }
-    } catch (e) {
-      setState(() {
-        _hasError = true;
-        _isLoading = false;
-      });
-      print("Exception: $e");
-    }
-  }
-
-  // Fetch data for prodi from API
-  Future<void> _fetchProdi() async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://192.168.240.35:8000/api/prodi'), // Endpoint untuk mengambil data prodi
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body) as List<dynamic>;
-        setState(() {
-          // Mapping id_prodi to nama prodi
-          _prodiMap = {for (var item in jsonData) item['id_prodi'].toString(): item['nama']};
-          _isLoading = false;
-        });
-        print("Prodi data fetched successfully: $_prodiMap");
       } else {
         setState(() {
           _hasError = true;
@@ -143,22 +111,17 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
           ),
           Center(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 const Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Kompetensi Prodi',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0B2F9F),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  child: Text(
+                    'Kompetensi Prodi',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B2F9F),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 Padding(
@@ -191,19 +154,29 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
                         : Expanded(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: const [
-                                  DataColumn(label: Text('No')),
-                                  DataColumn(label: Text('Nama')),
-                                  DataColumn(label: Text('Prodi')),
-                                ],
-                                rows: _getFilteredData().map((row) {
-                                  return DataRow(cells: [
-                                    DataCell(Text(row['No']!)),
-                                    DataCell(Text(row['Nama']!)),
-                                    DataCell(Text(row['Prodi']!)),
-                                  ]);
-                                }).toList(),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: DataTable(
+                                  headingRowColor: MaterialStateColor.resolveWith(
+                                    (states) => const Color(0xFF0B2F9F),
+                                  ),
+                                  headingTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  columns: const [
+                                    DataColumn(label: Text('No')),
+                                    DataColumn(label: Text('Nama')),
+                                    DataColumn(label: Text('Prodi')),
+                                  ],
+                                  rows: _getFilteredData().map((row) {
+                                    return DataRow(cells: [
+                                      DataCell(Text(row['No']!)),
+                                      DataCell(Text(row['Nama']!)),
+                                      DataCell(Text(row['Prodi']!)),
+                                    ]);
+                                  }).toList(),
+                                ),
                               ),
                             ),
                           ),
