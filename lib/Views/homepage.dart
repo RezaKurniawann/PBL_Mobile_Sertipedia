@@ -1,5 +1,22 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:sertipedia/Template/drawer.dart';
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sertipedia',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const HomePage(title: 'Dosen Jurusan Teknologi Informasi'),
+    );
+  }
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -10,8 +27,148 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _counter = 10; // Example lecturer count
-  String searchQuery = '';
+  List<Map<String, dynamic>> lecturers = [];
+  List<Map<String, dynamic>> prodis = [];
+  List<Map<String, dynamic>> bidangMinats = [];
+  bool isLoading = true;
+  String errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+  }
+
+  Future<void> fetchData() async {
+    try {
+      await Future.wait([fetchProdis(), fetchBidangMinats()]);
+      await fetchLecturers();
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Terjadi kesalahan: $e';
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchProdis() async {
+    const String apiUrl = "http://192.168.69.59:8000/api/prodis";
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          prodis = data.map((item) {
+            return {'id': item['id'], 'name': item['nama']};
+          }).toList();
+        });
+      } else {
+        throw 'Gagal memuat data Prodi: ${response.statusCode}';
+      }
+    } catch (e) {
+      throw 'Gagal memuat data Prodi: $e';
+    }
+  }
+
+  Future<void> fetchBidangMinats() async {
+    const String apiUrl = "http://192.168.69.59:8000/api/bidangminats";
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          bidangMinats = data.map((item) {
+            return {'id': item['id'], 'name': item['nama']};
+          }).toList();
+        });
+      } else {
+        throw 'Gagal memuat data Bidang Minat: ${response.statusCode}';
+      }
+    } catch (e) {
+      throw 'Gagal memuat data Bidang Minat: $e';
+    }
+  }
+
+  Future<void> fetchLecturers() async {
+    const String apiUrl = "http://192.168.69.59:8000/api/users";
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          lecturers = data.map((user) {
+            final bidangMinat = bidangMinats.firstWhere(
+              (bm) => bm['id'] == user['id_bidangminat'],
+              orElse: () => {'name': 'Tidak diketahui'},
+            );
+            final prodi = prodis.firstWhere(
+              (pr) => pr['id_prodi'] == user['id_prodi'],
+              orElse: () => {'name': 'Tidak diketahui'},
+            );
+            return {
+              'id': user['id'],
+              'name': user['nama'],
+              'prodi': prodi['nama'],
+              'bidangMinat': bidangMinat['nama'],
+              'matakuliahs': user['mata_kuliahs']?.join(', ') ?? '',
+              'image': user['image'] ?? '',  // Ensure image URL is safely handled
+              'sertifikasis': user['sertifikasis']?.length ?? 0,
+              'pelatihans': user['pelatihans']?.length ?? 0,
+            };
+          }).toList();
+          isLoading = false;
+        });
+      } else {
+        throw 'Gagal memuat data Dosen: ${response.statusCode}';
+      }
+    } catch (e) {
+      throw 'Gagal memuat data Dosen: $e';
+    }
+  }
+
+  void showLecturerDetail(BuildContext context, Map<String, dynamic> lecturer) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: lecturer['image'] != null && lecturer['image'] != ''
+                      ? Image.network(
+                          lecturer['image'],
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        )
+                      : const Icon(Icons.person, size: 100),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  lecturer['name'] ?? 'Nama tidak tersedia',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+                const SizedBox(height: 10),
+                Text('Prodi: ${lecturer['prodi']}'),
+                Text('Bidang Minat: ${lecturer['bidangMinat']}'),
+                Text('Matakuliah: ${lecturer['matakuliahs']}'),
+                Text('Jumlah Sertifikasi: ${lecturer['sertifikasis']}'),
+                Text('Jumlah Pelatihan: ${lecturer['pelatihans']}'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,134 +186,64 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              ),
-            ),
+            Text(widget.title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w900, color: Colors.white)),
             const Padding(padding: EdgeInsets.only(right: 17.5)),
           ],
         ),
       ),
       drawer: const DrawerLayout(),
-      resizeToAvoidBottomInset:
-          false, // Prevent body from resizing above keyboard
-      body: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Image.asset(
-              'assets/backgroundbuttom.png',
-              fit: BoxFit.cover,
-              height: 110,
-            ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage.isNotEmpty
+              ? Center(child: Text(errorMessage))
+              : buildLecturersList(),
+    );
+  }
+
+  Widget buildLecturersList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: lecturers.length,
+      itemBuilder: (context, index) {
+        final lecturer = lecturers[index];
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: lecturer['image'] != ''
+                  ? NetworkImage(lecturer['image'])
+                  : const AssetImage('assets/default_image.png')
+                      as ImageProvider,
+              radius: 30,
+            ),
+            title: Text(
+              lecturer['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 5),
-                const Text(
-                  'Dosen Jurusan Teknologi Informasi',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: Color(0xFF2F2175),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value; // Update search query
-                    });
-                  },
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: 'Search',
-                    filled: true,
-                    fillColor: Colors.grey[300],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _counter, // Number of lecturers
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15.0),
-                          ),
-                          elevation: 4,
-                          child: ListTile(
-                            leading: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: const BoxDecoration(
-                                color: Colors.grey,
-                                shape: BoxShape.rectangle,
-                              ),
-                            ),
-                            title: const Text(
-                              'Nama Dosen, S.T., M.T.',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            subtitle: const Text(
-                              'Kualifikasi: Basis Data, Data Science\nJumlah Sertifikasi: 7',
-                            ),
-                            trailing: Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF0d6efd),
-                                    Color(0xFF4576fd),
-                                    Color(0xFF607ffc),
-                                    Color(0xFF74888fc),
-                                    Color(0xFF8691fc),
-                                  ],
-                                  begin: Alignment.topRight,
-                                  end: Alignment.bottomLeft,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: TextButton(
-                                onPressed: () {
-                                  // Action when button is pressed
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.all(15),
-                                ),
-                                child: const Text('view detail'),
-                              ),
-                            ),
-                            onTap: () {
-                              // Add your navigation logic here
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                Text('Prodi: ${lecturer['prodi']}'),
+                Text('Bidang Minat: ${lecturer['bidangMinat']}'),
               ],
             ),
+            trailing: ElevatedButton(
+              onPressed: () => showLecturerDetail(context, lecturer),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B2F9F),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Detail'),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
