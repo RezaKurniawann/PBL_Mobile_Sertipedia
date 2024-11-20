@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:sertipedia/Template/drawer.dart';
 
 class KompetensiProdi extends StatefulWidget {
@@ -11,21 +13,52 @@ class KompetensiProdi extends StatefulWidget {
 
 class _KompetensiProdiState extends State<KompetensiProdi> {
   String _searchQuery = ""; // Variable to hold search query
+  List<Map<String, String>> _data = []; // Data fetched from API
+  Map<String, String> _prodiMap = {}; // Map to store prodi data with id_prodi as key
+  bool _isLoading = true; // Loading state
+  bool _hasError = false; // Error state
 
-  // Updated data for the DataTable
-  List<Map<String, String>> _data = [
-    {
-      'No': '1',
-      'Nama': 'Pemrograman Web',
-      'Prodi': 'D4 - Sistem Informasi Bisnis'
-    },
-    {
-      'No': '2',
-      'Nama': 'Pemrograman Mobile',
-      'Prodi': 'D4 - Teknik Informatika'
-    },
-    {'No': '3', 'Nama': 'Jaringan Komputer', 'Prodi': 'D2 - Fast Track'},
-  ];
+  // Fetch data from API
+  Future<void> _fetchData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://192.168.0.238:8000/api/kompetensis'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body) as List<dynamic>;
+        setState(() {
+          _data = jsonData.map((item) {
+            return {
+              'No': item['id_kompetensi'].toString(),
+              'Nama': item['nama'].toString(),
+              'Prodi': item['id_prodi'].toString(),
+            };
+          }).toList();
+          _isLoading = false;
+        });
+        print("Data fetched successfully: $_data");
+      } else {
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
+        print("Error: ${response.statusCode} - ${response.body}");
+      }
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+      });
+      print("Exception: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData(); // Fetch data when the widget is initialized
+  }
 
   // Function to filter data based on search query
   List<Map<String, String>> _getFilteredData() {
@@ -71,29 +104,24 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
             right: 0,
             bottom: 0,
             child: Image.asset(
-              'assets/backgroundbuttom.png', // Path to your footer image
+              'assets/backgroundbuttom.png',
               fit: BoxFit.cover,
-              height: 110, // Adjust the height if necessary
+              height: 110,
             ),
           ),
           Center(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 const Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Kompetensi Prodi',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0B2F9F),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  child: Text(
+                    'Kompetensi Prodi',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B2F9F),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 Padding(
@@ -115,27 +143,43 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
                     },
                   ),
                 ),
-                const SizedBox(
-                    height: 10), // Space between search bar and table
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('No')),
-                        DataColumn(label: Text('Nama')),
-                        DataColumn(label: Text('Prodi')),
-                      ],
-                      rows: _getFilteredData().map((row) {
-                        return DataRow(cells: [
-                          DataCell(Text(row['No']!)),
-                          DataCell(Text(row['Nama']!)),
-                          DataCell(Text(row['Prodi']!)),
-                        ]);
-                      }).toList(),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 10),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : _hasError
+                        ? const Text(
+                            'Error fetching data',
+                            style: TextStyle(color: Colors.red),
+                          )
+                        : Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: DataTable(
+                                  headingRowColor: MaterialStateColor.resolveWith(
+                                    (states) => const Color(0xFF0B2F9F),
+                                  ),
+                                  headingTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  columns: const [
+                                    DataColumn(label: Text('No')),
+                                    DataColumn(label: Text('Nama')),
+                                    DataColumn(label: Text('Prodi')),
+                                  ],
+                                  rows: _getFilteredData().map((row) {
+                                    return DataRow(cells: [
+                                      DataCell(Text(row['No']!)),
+                                      DataCell(Text(row['Nama']!)),
+                                      DataCell(Text(row['Prodi']!)),
+                                    ]);
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
               ],
             ),
           ),
