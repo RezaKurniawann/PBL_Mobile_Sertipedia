@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchProdis() async {
-    const String apiUrl = "http://192.168.69.59:8000/api/prodis";
+    const String apiUrl = "http://192.168.30.165:8000/api/prodis";
     try {
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
@@ -73,7 +73,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchBidangMinats() async {
-    const String apiUrl = "http://192.168.69.59:8000/api/bidangminats";
+    const String apiUrl = "http://192.168.30.165:8000/api/bidangminats";
     try {
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchLecturers() async {
-    const String apiUrl = "http://192.168.69.59:8000/api/users";
+    const String apiUrl = "http://192.168.30.165:8000/api/users";
     try {
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
