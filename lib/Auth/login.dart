@@ -1,58 +1,101 @@
-import 'dart:convert'; // Untuk jsonEncode dan jsonDecode
-import 'package:http/http.dart' as http; // Untuk penggunaan http
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sertipedia/Api/api_services.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  String _errorMessage = '';
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
-  Future<void> _login() async {
-    final String username = _usernameController.text;
-    final String password = _passwordController.text;
-
+  // Login function to authenticate user and store data in SharedPreferences
+  Future<void> loginUser() async {
+    // API login request URL
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/login'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
+      Dio dio = Dio();
+      final response = await dio.post(
+        url_login, // Replace with your actual URL
+        data: {
+          'username': usernameController.text,
+          'password': passwordController.text,
         },
-        body: jsonEncode(<String, String>{
-          'username': username,
-          'password': password,
-        }),
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
       );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        if (responseData['success'] == true) {
-          // Simpan token dan navigasi
-          String token = responseData['token'];
-          Navigator.pushNamed(context, '/homepage');
+        var data = response.data;
+
+        // Check if the response is successful
+        if (data['success']) {
+          // Save user data and token to SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('id_user', data['user']['id_user']);
+          await prefs.setInt('id_level', data['user']['id_level']);
+          await prefs.setInt('id_prodi', data['user']['id_prodi']);
+          await prefs.setString('nama', data['user']['nama']);
+          await prefs.setString('email', data['user']['email']);
+          await prefs.setString('no_telp', data['user']['no_telp']);
+          await prefs.setString('username', data['user']['username']);
+          await prefs.setString('token', data['token']);
+
+          // Debugging: Print the saved data to the console
+          print('Saved Data to SharedPreferences:');
+          print('id_user: ${data['user']['id_user']}');
+          print('id_level: ${data['user']['id_level']}');
+          print('id_prodi: ${data['user']['id_prodi']}');
+          print('nama: ${data['user']['nama']}');
+          print('email: ${data['user']['email']}');
+          print('no_telp: ${data['user']['no_telp']}');
+          print('username: ${data['user']['username']}');
+          print('token: ${data['token']}');
+
+          // Optionally navigate to another page after successful login
+          Navigator.pushReplacementNamed(
+              context, '/homepage'); // Change '/home' to your home route
         } else {
-          setState(() {
-            _errorMessage = responseData['message'] ?? 'Login failed.';
-          });
+          // Handle failed login
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Login failed, please check your credentials')),
+          );
         }
       } else {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        setState(() {
-          _errorMessage = responseData['message'] ?? 'Login failed. Please try again.';
-        });
+        // Handle server error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to connect to server')),
+        );
       }
     } catch (e) {
-      // Tangani kesalahan jaringan atau lainnya
-      setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
-      });
+      // Handle Dio error (e.g., network issues)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error. Please try again later.')),
+      );
+      print('Error: $e');
     }
+  }
+
+  // Function to check and print the stored SharedPreferences data (for debugging)
+  Future<void> checkStoredData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    int? userId = prefs.getInt('id_user');
+    int? levelId = prefs.getInt('id_level');
+    String? username = prefs.getString('username');
+
+    // Debugging: Print the retrieved data
+    print('Retrieved Data from SharedPreferences:');
+    print('token: $token');
+    print('id_user: $userId');
+    print('id_level: $levelId');
+    print('username: $username');
   }
 
   @override
@@ -73,17 +116,92 @@ class _LoginPageState extends State<LoginPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Selamat Datang!', style: TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
-                  const Text('Sistem Informasi Sertifikasi dan Pelatihan Dosen JTI', style: TextStyle(fontSize: 15, color: Colors.white)),
+                  const Padding(padding: EdgeInsets.only(bottom: 50)),
+                  const Text(
+                    'Selamat Datang!',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontSize: 30,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  TextField(controller: _usernameController, decoration: InputDecoration(labelText: 'Username', labelStyle: TextStyle(color: Colors.white))),
-                  const SizedBox(height: 20),
-                  TextField(controller: _passwordController, obscureText: true, decoration: InputDecoration(labelText: 'Password', labelStyle: TextStyle(color: Colors.white))),
-                  const SizedBox(height: 20),
-                  if (_errorMessage.isNotEmpty) Text(_errorMessage, style: TextStyle(color: Colors.red)),
+                  const Text(
+                    'Sistem Informasi Sertifikasi\ndan Pelatihan Dosen JTI\n\n\n',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  ElevatedButton(onPressed: _login, child: Text('Log In')),
+                  TextField(
+                    controller: usernameController,
+                    decoration: const InputDecoration(
+                      labelText: "Username",
+                      labelStyle: TextStyle(color: Colors.white),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "Password",
+                      labelStyle: TextStyle(color: Colors.white),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: loginUser, // Call the login function
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD9D9D9),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0),
+                      ),
+                    ),
+                    child: const Text(
+                      'Log In',
+                      style: TextStyle(
+                        color: Color(0xFF0B2F9F),
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () {
+                        // Navigate to the Mahasiswa homepage route
+                        Navigator.pushNamed(context, '/homepage');
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Log in sebagai Mahasiswa',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
