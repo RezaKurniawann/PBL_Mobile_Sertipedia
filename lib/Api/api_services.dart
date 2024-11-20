@@ -1,7 +1,7 @@
 
 
 // URL dasar untuk API
-String urlDomain = "http://192.168.30.165:8000/api/";
+String urlDomain = "http://192.168.69.8:8000/api/";
 
 // URL-URL untuk endpoint API
 String url_login = urlDomain + "login"; // Endpoint untuk login

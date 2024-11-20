@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:data_table_2/data_table_2.dart'; // Import DataTable2
 import 'package:sertipedia/Template/drawer.dart';
 
 class KompetensiProdi extends StatefulWidget {
@@ -13,22 +14,41 @@ class KompetensiProdi extends StatefulWidget {
 
 class _KompetensiProdiState extends State<KompetensiProdi> {
   String _searchQuery = ""; // Variable to hold search query
-  List<Map<String, String>> _data = []; // Data fetched from API
-  Map<String, String> _prodiMap = {}; // Map to store prodi data with id_prodi as key
+  List<Map<String, String>> _data = []; // Data fetched from kompetensi API
+  Map<String, String> _prodiMap = {}; // Map to hold id_prodi to prodi_name
   bool _isLoading = true; // Loading state
   bool _hasError = false; // Error state
 
-  // Fetch data from API
+  // Fetch data from kompetensi and prodi APIs
   Future<void> _fetchData() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://192.168.0.238:8000/api/kompetensis'),
+      // Fetch kompetensi data
+      final kompetensiResponse = await http.get(
+        Uri.parse('http://192.168.69.8:8000/api/kompetensis'),
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body) as List<dynamic>;
+      // Fetch prodi data
+      final prodiResponse = await http.get(
+        Uri.parse('http://192.168.69.8:8000/api/prodis'),
+      );
+
+      if (kompetensiResponse.statusCode == 200 &&
+          prodiResponse.statusCode == 200) {
+        // Parse kompetensi data
+        final List<dynamic> kompetensiJson =
+            json.decode(kompetensiResponse.body) as List<dynamic>;
+        final List<dynamic> prodiJson =
+            json.decode(prodiResponse.body) as List<dynamic>;
+
+        // Map prodi data for lookup
+        final Map<String, String> prodiMap = {
+          for (var item in prodiJson)
+            item['id_prodi'].toString(): item['nama'].toString()
+        };
+
         setState(() {
-          _data = jsonData.map((item) {
+          _prodiMap = prodiMap;
+          _data = kompetensiJson.map((item) {
             return {
               'No': item['id_kompetensi'].toString(),
               'Nama': item['nama'].toString(),
@@ -37,20 +57,17 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
           }).toList();
           _isLoading = false;
         });
-        print("Data fetched successfully: $_data");
       } else {
         setState(() {
           _hasError = true;
           _isLoading = false;
         });
-        print("Error: ${response.statusCode} - ${response.body}");
       }
     } catch (e) {
       setState(() {
         _hasError = true;
         _isLoading = false;
       });
-      print("Exception: $e");
     }
   }
 
@@ -96,7 +113,6 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
         ),
       ),
       drawer: const DrawerLayout(),
-      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned(
@@ -152,34 +168,33 @@ class _KompetensiProdiState extends State<KompetensiProdi> {
                             style: TextStyle(color: Colors.red),
                           )
                         : Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.vertical,
-                                child: DataTable(
-                                  headingRowColor: MaterialStateColor.resolveWith(
-                                    (states) => const Color(0xFF0B2F9F),
-                                  ),
-                                  headingTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  columns: const [
-                                    DataColumn(label: Text('No')),
-                                    DataColumn(label: Text('Nama')),
-                                    DataColumn(label: Text('Prodi')),
-                                  ],
-                                  rows: _getFilteredData().map((row) {
-                                    return DataRow(cells: [
-                                      DataCell(Text(row['No']!)),
-                                      DataCell(Text(row['Nama']!)),
-                                      DataCell(Text(row['Prodi']!)),
-                                    ]);
-                                  }).toList(),
-                                ),
-                              ),
+                          child: DataTable2(
+                            headingRowColor: MaterialStateColor.resolveWith(
+                              (states) => const Color(0xFF0B2F9F),
                             ),
+                            headingTextStyle: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            columnSpacing: 5.0, // Kurangi jarak antar kolom
+                            horizontalMargin: 5.0, // Kurangi margin horizontal
+                            minWidth: 400.0, // Lebar minimum tabel
+                            fixedTopRows: 1, // Tetapkan header tetap
+                            columns: const [
+                              DataColumn2(label: Text('No'), size: ColumnSize.S),
+                              DataColumn2(label: Text('Nama'), size: ColumnSize.L),
+                              DataColumn2(label: Text('Prodi'), size: ColumnSize.M),
+                            ],
+                            rows: _getFilteredData().map((row) {
+                              return DataRow(cells: [
+                                DataCell(Text(row['No']!)),
+                                DataCell(Text(row['Nama']!)),
+                                DataCell(Text(_prodiMap[row['Prodi']] ?? 'Unknown')),
+                              ]);
+                            }).toList(),
                           ),
+                        ),
+
               ],
             ),
           ),

@@ -1,7 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sertipedia/Api/api_services.dart';
+import 'package:dio/dio.dart';
 
-class DrawerLayout extends StatelessWidget {
+class DrawerLayout extends StatefulWidget {
   const DrawerLayout({super.key});
+
+  @override
+  State<DrawerLayout> createState() => _DrawerLayoutState();
+}
+
+class _DrawerLayoutState extends State<DrawerLayout> {
+  int _idLevel = 0;
+  final Dio _dio = Dio();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserLevel();
+  }
+
+  Future<void> _loadUserLevel() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _idLevel =
+          prefs.getInt('id_level') ?? 0; // Default to 0 if no value found
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +56,7 @@ class DrawerLayout extends StatelessWidget {
                 ),
               ),
             ),
+            if (_idLevel == 2 || _idLevel ==3)
             ListTile(
               leading: const Icon(Icons.home, color: Colors.white),
               title: const Text('Home', style: TextStyle(color: Colors.white)),
@@ -39,6 +65,7 @@ class DrawerLayout extends StatelessWidget {
                 Navigator.pushNamed(context, '/homepage');
               },
             ),
+            if (_idLevel == 2 || _idLevel ==3)
             ListTile(
               leading: const Icon(Icons.person, color: Colors.white),
               title:
@@ -48,47 +75,51 @@ class DrawerLayout extends StatelessWidget {
                 Navigator.pushNamed(context, '/profile');
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart, color: Colors.white),
-              title: const Text('Statistik',
-                  style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/statistik');
-              },
-            ),
-            ExpansionTile(
-              leading: const Icon(Icons.check_circle, color: Colors.white),
-              title: const Text('Verifikasi',
-                  style: TextStyle(color: Colors.white)),
-              children: [
-                ListTile(
-                  title: const Text('Sertifikasi',
-                      style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/verifikasi_sertifikasi');
-                  },
-                ),
-                ListTile(
-                  title: const Text('Pelatihan',
-                      style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/verifikasi_pelatihan');
-                  },
-                ),
-              ],
-            ),
-            ListTile(
-              leading: const Icon(Icons.school, color: Colors.white),
-              title: const Text('Kompetensi Prodi',
-                  style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/kompetensi_prodi');
-              },
-            ),
+            if (_idLevel == 2)
+              ListTile(
+                leading: const Icon(Icons.bar_chart, color: Colors.white),
+                title: const Text('Statistik',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/statistik');
+                },
+              ),
+            if (_idLevel == 2)
+              ExpansionTile(
+                leading: const Icon(Icons.check_circle, color: Colors.white),
+                title: const Text('Verifikasi',
+                    style: TextStyle(color: Colors.white)),
+                children: [
+                  ListTile(
+                    title: const Text('Sertifikasi',
+                        style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/verifikasi_sertifikasi');
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Pelatihan',
+                        style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/verifikasi_pelatihan');
+                    },
+                  ),
+                ],
+              ),
+            if (_idLevel == 2)
+              ListTile(
+                leading: const Icon(Icons.school, color: Colors.white),
+                title: const Text('Kompetensi Prodi',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/kompetensi_prodi');
+                },
+              ),
+            if (_idLevel == 2 || _idLevel ==3)
             ExpansionTile(
               leading: const Icon(Icons.workspace_premium, color: Colors.white),
               title: const Text('Input Data',
@@ -112,6 +143,7 @@ class DrawerLayout extends StatelessWidget {
                 ),
               ],
             ),
+            if (_idLevel == 2 || _idLevel ==3)
             ListTile(
               leading:
                   const Icon(Icons.notifications_active, color: Colors.white),
@@ -122,6 +154,7 @@ class DrawerLayout extends StatelessWidget {
                 Navigator.pushNamed(context, '/notifikasi');
               },
             ),
+            if (_idLevel == 2 || _idLevel ==3)
             ListTile(
               leading: const Icon(Icons.file_download,
                   color: Colors.white), // Icon for Download Surat
@@ -133,16 +166,28 @@ class DrawerLayout extends StatelessWidget {
                     context, '/surat_tugas'); // Navigate to Login on logout
               },
             ),
+            if (_idLevel == 2 || _idLevel ==3)
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white),
               title:
                   const Text('Logout', style: TextStyle(color: Colors.white)),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // Close the drawer
                 Navigator.pushNamed(
-                    context, '/login'); // Navigate to Login on logout
+                    context, '/login');
               },
             ),
+            if (_idLevel == 0)
+              ListTile(
+                leading: const Icon(Icons.login, color: Colors.white),
+                title:
+                const Text('Login', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer
+                  Navigator.pushNamed(
+                      context, '/login');
+                },
+              ),
           ],
         ),
       ),
