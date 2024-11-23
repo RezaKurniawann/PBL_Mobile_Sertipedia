@@ -25,6 +25,7 @@ class MyApp extends StatelessWidget {
         '/notifikasi': (context) => const Notifikasi (title: 'SERTIPEDIA'),
         '/homepage': (context) => const HomePage (title: 'SERTIPEDIA'),
         '/profile': (context) => const Profile (title: 'SERTIPEDIA'),
+        '/profile_homepage': (context) => const ProfileHomepage (title: 'SERTIPEDIA'),
         '/statistik': (context) => const Statistik (title: 'SERTIPEDIA'),
         '/kompetensi_prodi': (context) => const KompetensiProdi (title: 'SERTIPEDIA'),
         '/surat_tugas': (context) => const SuratTugasPage (title: 'SERTIPEDIA'),

@@ -1,7 +1,107 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sertipedia/Api/api_services.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  Future<void> logoutUser(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Clear all saved data in SharedPreferences
+    await prefs.clear();
+
+    // Debugging: Confirm the data is cleared
+    print('User logged out. All data cleared from SharedPreferences.');
+
+    // Navigate back to the login page
+    Navigator.pushReplacementNamed(context, '/login'); // Ganti '/login' sesuai dengan route halaman login Anda
+  }
+
+  Future<void> loginUser() async {
+    // API login request URL
+    try {
+      Dio dio = Dio();
+      final response = await dio.post(
+        url_login, // Replace with your actual URL
+        data: {
+          'username': usernameController.text,
+          'password': passwordController.text,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        var data = response.data;
+
+        // Check if the response is successful
+        if (data['success']) {
+          // Save user data and token to SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('id_user', data['user']['id_user']);
+          await prefs.setInt('id_level', data['user']['id_level']);
+          await prefs.setInt('id_prodi', data['user']['id_prodi']);
+          await prefs.setString('nama', data['user']['nama']);
+          await prefs.setString('email', data['user']['email']);
+          await prefs.setString('no_telp', data['user']['no_telp']);
+          await prefs.setString('username', data['user']['username']);
+
+
+          if (data['user']['image'] != null) {
+            await prefs.setString('image', data['user']['image']);
+          } else {
+            await prefs.setString('image', ""); //
+          }
+
+          await prefs.setString('token', data['token']);
+
+
+          print('Saved Data to SharedPreferences:');
+          print('id_user: ${data['user']['id_user']}');
+          print('id_level: ${data['user']['id_level']}');
+          print('id_prodi: ${data['user']['id_prodi']}');
+          print('nama: ${data['user']['nama']}');
+          print('email: ${data['user']['email']}');
+          print('no_telp: ${data['user']['no_telp']}'); 
+          print('image: ${data['user']['image'] ?? "No Image"}');
+          print('username: ${data['user']['username']}');
+
+
+          // Optionally navigate to another page after successful login
+          Navigator.pushReplacementNamed(
+              context, '/homepage'); // Change '/home' to your home route
+        } else {
+          // Handle failed login
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Login failed, please check your credentials')),
+          );
+        }
+      } else {
+        // Handle server error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to connect to server')),
+        );
+      }
+    } catch (e) {
+      // Handle Dio error (e.g., network issues)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error. Please try again later.')),
+      );
+      print('Error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,48 +145,26 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Username',
-                      labelStyle: const TextStyle(
-                        color: Colors.white,
-                      ),
-                      enabledBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
-                      focusedBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
+                    controller: usernameController,
+                    decoration: const InputDecoration(
+                      labelText: "Username",
+                      labelStyle: TextStyle(color: Colors.white),
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(color: Colors.white),
                   ),
                   const SizedBox(height: 20),
                   TextField(
+                    controller: passwordController,
                     obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      labelStyle: const TextStyle(
-                        color: Colors.white,
-                      ),
-                      enabledBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
-                      focusedBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
+                    decoration: const InputDecoration(
+                      labelText: "Password",
+                      labelStyle: TextStyle(color: Colors.white),
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(color: Colors.white),
                   ),
                   const SizedBox(height: 30),
                   ElevatedButton(
-                    onPressed: () {
-                      // Logika autentikasi atau validasi login di sini
-                      // Jika berhasil, arahkan ke homepage
-                      Navigator.pushNamed(context, '/homepage');
-                    },
+                    onPressed: loginUser, // Call the login function
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD9D9D9),
                       padding: const EdgeInsets.symmetric(
@@ -109,7 +187,7 @@ class LoginPage extends StatelessWidget {
                     child: TextButton(
                       onPressed: () {
                         // Navigate to the Mahasiswa homepage route
-                        Navigator.pushNamed(context, '/mhs/homepage');
+                        Navigator.pushNamed(context, '/homepage');
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,

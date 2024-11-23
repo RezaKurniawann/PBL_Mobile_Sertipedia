@@ -1,7 +1,7 @@
 
 
 // URL dasar untuk API
-String urlDomain = "http://192.168.66.228:8000/api/";
+String urlDomain = "http://192.168.72.116:8000/api/";
 
 // URL-URL untuk endpoint API
 String url_login = urlDomain + "login"; // Endpoint untuk login
@@ -41,9 +41,13 @@ String url_sertifikasi_show = urlDomain + "sertifikasis/{sertifikasi}"; // Menam
 // User Routes
 String url_users = urlDomain + "users"; // Mendapatkan daftar pengguna
 String url_user_show = urlDomain + "users/{user}"; // Menampilkan detail pengguna
+String url_user_image_profile = urlDomain + "users/imageProfile/";
+String url_user_data_profile = urlDomain + "users/profile/";
+String url_user_bidangminat = urlDomain + "users/bidangminat/";
+String url_user_matakuliah = urlDomain + "users/matakuliah/";
 String url_user_create = urlDomain + "users/create"; // Membuat pengguna baru
-String url_user_update = urlDomain + "users/update/{user}"; // Memperbarui pengguna
-String url_user_delete = urlDomain + "users/delete/{user}"; // Menghapus pengguna
+String url_user_update = urlDomain + "users/update/"; // Memperbarui pengguna
+String url_user_delete = urlDomain + "users/delete/"; // Menghapus pengguna
 
 // Vendor Routes
 String url_vendors = urlDomain + "vendors"; // Mendapatkan daftar vendor
@@ -52,11 +56,11 @@ String url_vendor_show = urlDomain + "vendors/{vendor}"; // Menampilkan detail v
 // Detail Pelatihan Routes
 String url_d_pelatihans = urlDomain + "d_pelatihans"; // Mendapatkan daftar detail pelatihan
 String url_d_pelatihan_show = urlDomain + "d_pelatihans/{d_pelatihan}"; // Menampilkan detail pelatihan
-
+String url_d_pelatihan_update = urlDomain + "d_pelatihans/update/";
 // Detail Sertifikasi Routes
 String url_d_sertifikasis = urlDomain + "d_sertifikasis"; // Mendapatkan daftar detail sertifikasi
 String url_d_sertifikasi_show = urlDomain + "d_sertifikasis/{d_sertifikasi}"; // Menampilkan detail sertifikasi
-
+String url_d_sertifikasi_update = urlDomain + "d_sertifikasis/update/";
 // Periode Routes
 String url_periode = urlDomain + "periode"; // Mendapatkan daftar periode
 String url_periode_show = urlDomain + "periode/{periode}"; // Menampilkan detail periode

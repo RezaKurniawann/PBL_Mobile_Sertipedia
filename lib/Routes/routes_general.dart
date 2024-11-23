@@ -3,6 +3,7 @@ export 'package:sertipedia/Views/verifikasi_pelatihan.dart';
 export 'package:sertipedia/Views/verifikasi_sertifikasi.dart';
 export 'package:sertipedia/Views/notifikasi.dart';
 export 'package:sertipedia/Views/profile.dart';
+export 'package:sertipedia/Views/profile_homepage.dart';
 export 'package:sertipedia/Views/statistik.dart';
 export 'package:sertipedia/Views/kompetensi_prodi.dart';
 export 'package:sertipedia/Views/surat_tugas.dart';

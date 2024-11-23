@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sertipedia/Template/drawer.dart';
+import 'package:sertipedia/Api/api_services.dart';
+import 'package:dio/dio.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -10,8 +12,126 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _counter = 10; // Example lecturer count
+  List<dynamic> userList = [];
+  List<dynamic> prodiList = [];
+  List<dynamic> bidangMinatList = [];
+  List<dynamic> mataKuliahList = [];
+  List<dynamic> filteredUserList = []; // Menyimpan hasil pencarian
+
   String searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUser();
+    _fetchProdi();
+  }
+
+  Future<void> _fetchUser() async {
+    try {
+      final response = await Dio().get(url_users);
+      if (response.statusCode == 200) {
+        setState(() {
+          userList = response.data as List;
+          filteredUserList = userList; // Menyimpan semua user sebagai data awal
+        });
+
+        // Ambil data bidang minat dan mata kuliah untuk setiap user
+        for (var user in userList) {
+          // Fetch bidang minat
+          final bidangMinatResponse =
+              await Dio().get('$url_user_bidangminat${user['id_user']}');
+          if (bidangMinatResponse.statusCode == 200) {
+            setState(() {
+              var bidangMinat =
+                  List<String>.from(bidangMinatResponse.data['bidangminat']);
+              bidangMinatList.add({
+                'id_user': user['id_user'],
+                'bidangminat': bidangMinat,
+              });
+            });
+          }
+
+          // Fetch mata kuliah
+          final mataKuliahResponse =
+              await Dio().get('$url_user_matakuliah${user['id_user']}');
+          if (mataKuliahResponse.statusCode == 200) {
+            setState(() {
+              var mataKuliah =
+                  List<String>.from(mataKuliahResponse.data['matakuliah']);
+              mataKuliahList.add({
+                'id_user': user['id_user'],
+                'matakuliah': mataKuliah,
+              });
+            });
+          }
+        }
+      } else {
+        print("Gagal memuat data User");
+      }
+    } catch (e) {
+      print("Error saat mengambil data User: $e");
+    }
+  }
+
+  String getBidangMinat(int userId) {
+    final bidangMinat = bidangMinatList.firstWhere(
+      (bidangMinat) => bidangMinat['id_user'] == userId,
+      orElse: () => null,
+    );
+    return bidangMinat != null
+        ? bidangMinat['bidangminat'].join(", ")
+        : 'Bidang minat tidak ditemukan';
+  }
+
+  String getMataKuliah(int userId) {
+    final mataKuliah = mataKuliahList.firstWhere(
+      (mataKuliah) => mataKuliah['id_user'] == userId,
+      orElse: () => null,
+    );
+    return mataKuliah != null
+        ? mataKuliah['matakuliah'].join(", ")
+        : 'Mata kuliah tidak ditemukan';
+  }
+
+  Future<void> _fetchProdi() async {
+    try {
+      final response = await Dio().get(url_prodis);
+      if (response.statusCode == 200) {
+        setState(() {
+          prodiList = response.data as List;
+        });
+      } else {
+        print("Gagal memuat data Prodi");
+      }
+    } catch (e) {
+      print("Error saat mengambil data prodi: $e");
+    }
+  }
+
+  String getProdiName(int idProdi) {
+    final prodi = prodiList.firstWhere(
+      (prodi) => prodi['id_prodi'] == idProdi,
+      orElse: () => null,
+    );
+    return prodi != null ? prodi['nama'] : 'Prodi tidak ditemukan';
+  }
+
+  void _filterUsers(String query) {
+    setState(() {
+      searchQuery = query;
+      filteredUserList = userList.where((user) {
+        String userName = user['nama']?.toLowerCase() ?? '';
+        String userProdi = getProdiName(user['id_prodi']).toLowerCase();
+        String userBidangMinat = getBidangMinat(user['id_user']).toLowerCase();
+        String userMataKuliah = getMataKuliah(user['id_user']).toLowerCase();
+        return userName.contains(query.toLowerCase()) ||
+            userProdi.contains(query.toLowerCase()) ||
+            userBidangMinat.contains(query.toLowerCase()) ||
+            userMataKuliah.contains(query.toLowerCase());
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,14 +192,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 10),
                 TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value; // Update search query
-                    });
-                  },
+                  onChanged: _filterUsers, // Panggil fungsi untuk filter
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
-                    hintText: 'Search',
+                    hintText: 'Search..',
                     filled: true,
                     fillColor: Colors.grey[300],
                     border: OutlineInputBorder(
@@ -91,8 +207,9 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 5),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _counter, // Number of lecturers
+                    itemCount: filteredUserList.length,
                     itemBuilder: (context, index) {
+                      final user = filteredUserList[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Card(
@@ -104,18 +221,35 @@ class _HomePageState extends State<HomePage> {
                             leading: Container(
                               width: 50,
                               height: 50,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: Colors.grey,
                                 shape: BoxShape.rectangle,
+                                image: DecorationImage(
+                                  image: NetworkImage(
+                                    user['id_user'] != null
+                                        ? '$url_user_image_profile${user['id_user']}'
+                                        : 'assets/default-profile.jpg',
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
                               ),
                             ),
-                            title: const Text(
-                              'Nama Dosen, S.T., M.T.',
-                              style: TextStyle(
+                            title: Text(
+                              user['nama'] ?? 'Unknown',
+                              style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 16),
                             ),
-                            subtitle: const Text(
-                              'Kualifikasi: Basis Data, Data Science\nJumlah Sertifikasi: 7',
+                            subtitle: Text(
+                              'Prodi: ${getProdiName(user['id_prodi'])}\n'
+                              'Bidang Minat: ${getBidangMinat(user['id_user'])}\n'
+                              'Mata Kuliah: ${getMataKuliah(user['id_user'])}',
                             ),
                             trailing: Container(
                               decoration: BoxDecoration(
@@ -134,13 +268,33 @@ class _HomePageState extends State<HomePage> {
                               ),
                               child: TextButton(
                                 onPressed: () {
-                                  // Action when button is pressed
+                                  print('ID yang dikirim: ${user['id_user']}');
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/profile_homepage',
+                                    arguments: {
+                                      'id_user': user['id_user'],
+                                    },
+                                  );
                                 },
                                 style: TextButton.styleFrom(
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.all(15),
+                                  padding: const EdgeInsets.all(5),
                                 ),
-                                child: const Text('view detail'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.visibility, // Eye icon
+                                      color: Colors.white,
+                                      size: 16, // Adjusted icon size
+                                    ),
+                                    const SizedBox(
+                                        width:
+                                            5), // Add space between icon and text
+                                    const Text('Detail'),
+                                  ],
+                                ),
                               ),
                             ),
                             onTap: () {

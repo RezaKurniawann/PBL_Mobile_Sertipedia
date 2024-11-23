@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:sertipedia/Template/drawer.dart';
 import 'package:sertipedia/Api/api_services.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InputPelatihan extends StatefulWidget {
   const InputPelatihan({super.key, required this.title});
@@ -16,20 +17,58 @@ class InputPelatihan extends StatefulWidget {
 }
 
 class _InputPelatihanState extends State<InputPelatihan> {
+  int _idUser = 0;
+
   List<dynamic> vendorPelatihanList = [];
-  List<dynamic> PelatihanList = [];
+  List<dynamic> pelatihanList = [];
+  List<dynamic> detailPelatihanList = [];
+  List<dynamic> periodeList = [];
+
   final List<String> _levelPelatihanOptions = ['Nasional', 'Internasional'];
 
   String? _selectedVendorPelatihan;
   String? _selectedPelatihan;
+  String? _selectedDetailPelatihan;
+  String? _selectedPeriodePelatihan;
   String? _selectedLevelPelatihan;
   String? _base64Image;
 
-
-  final TextEditingController _periodePelatihanController =
+  final TextEditingController _pelatihanSearchController =
       TextEditingController();
-  final TextEditingController _pelatihanSearchController = TextEditingController();
   final TextEditingController _vendorSearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVendorPelatihan();
+    _fetchPelatihan();
+    _fetchDetailPelatihan();
+    _fetchPeriodeList();
+    _loadIdUser();
+  }
+
+  Future<void> _loadIdUser() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _idUser = prefs.getInt('id_user') ?? 0;
+    });
+  }
+
+  Future<void> _fetchPeriodeList() async {
+    try {
+      final response = await Dio().get(url_periode); // Make the API call
+      if (response.statusCode == 200) {
+        setState(() {
+          periodeList =
+              response.data as List; // Store the periods in periodeList
+        });
+      } else {
+        print("Gagal memuat data Periode");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Periode: $e");
+    }
+  }
 
   // Ambil data Pelatihan
   Future<void> _fetchVendorPelatihan() async {
@@ -56,13 +95,13 @@ class _InputPelatihanState extends State<InputPelatihan> {
     }
   }
 
-  Future<void> _fetchNamaPelatihan() async {
+  Future<void> _fetchPelatihan() async {
     try {
       final response =
           await Dio().get(url_pelatihans); // URL API untuk pelatihan
       if (response.statusCode == 200) {
         setState(() {
-          PelatihanList = response.data as List; // Simpan semua field
+          pelatihanList = response.data as List; // Simpan semua field
         });
       } else {
         print("Gagal memuat data Pelatihan");
@@ -72,11 +111,56 @@ class _InputPelatihanState extends State<InputPelatihan> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchVendorPelatihan(); // Mengambil data Pelatihan saat widget diinisialisasi
-    _fetchNamaPelatihan();
+  Future<void> _fetchDetailPelatihan() async {
+    try {
+      final response = await Dio().get(url_d_pelatihans);
+      if (response.statusCode == 200) {
+        setState(() {
+          detailPelatihanList = response.data as List;
+        });
+      } else {
+        print("Gagal memuat data Pelatihan");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Pelatihan: $e");
+    }
+  }
+
+  Future<void> _updateImageToServer() async {
+    if (_base64Image != null && _selectedDetailPelatihan != null) {
+      try {
+        final url =
+            url_d_pelatihan_update + _selectedDetailPelatihan.toString();
+        final response = await Dio().put(
+          url,
+          data: {
+            'image': _base64Image,
+          },
+        );
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Data berhasil diupload!')),
+          );
+
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Data gagal diupload!')),
+          );
+        }
+      } catch (e) {
+        print('Error: $e');
+        // Display an error message if an exception occurs
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Belum memasukkan gambar!')),
+      );
+    }
   }
 
   Future<void> _uploadPhoto() async {
@@ -137,10 +221,97 @@ class _InputPelatihanState extends State<InputPelatihan> {
               child: const Text('Batal'),
             ),
             TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close the dialog
+                // Call the function to update the image
+                await _updateImageToServer();
+                // Optionally, show a success message to the user
+                // ScaffoldMessenger.of(context).showSnackBar(
+                //   const SnackBar(content: Text('Image updated successfully!')),
+                // );
+              },
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<int?> _getIdVendor(String namaVendor) async {
+    try {
+      final vendor = vendorPelatihanList.firstWhere(
+        (v) => v['nama'].toString().toLowerCase() == namaVendor.toLowerCase(),
+        orElse: () => null,
+      );
+      return vendor != null ? vendor['id_vendor'] : null;
+    } catch (e) {
+      print("Error saat mencari id_vendor: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdPeriode(String tahun) async {
+    try {
+      final periode = periodeList.firstWhere(
+        (p) => p['tahun'].toString().toLowerCase() == tahun.toLowerCase(),
+        orElse: () => null,
+      );
+      return periode != null ? periode['id_periode'] : null;
+    } catch (e) {
+      print("Error saat mencari id_periode: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdPelatihan(
+      int idVendor, int idPeriode, String namaPelatihan, String level) async {
+    try {
+      final pelatihan = pelatihanList.firstWhere(
+        (p) =>
+            p['id_vendor'] == idVendor &&
+            p['id_periode'] == idPeriode &&
+            p['nama'].toString().toLowerCase() == namaPelatihan.toLowerCase() &&
+            p['level_pelatihan'].toString().toLowerCase() ==
+                level.toLowerCase(),
+        orElse: () => null,
+      );
+      return pelatihan != null ? pelatihan['id_pelatihan'] : null;
+    } catch (e) {
+      print("Error saat mencari id_pelatihan: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdDetailPelatihan(int idUser, int idPelatihan) async {
+    try {
+      final detailPelatihan = detailPelatihanList.firstWhere(
+        (p) => p['id_user'] == idUser && p['id_pelatihan'] == idPelatihan,
+        orElse: () => null,
+      );
+      return detailPelatihan != null
+          ? detailPelatihan['id_detail_pelatihan']
+          : null;
+    } catch (e) {
+      print("Error saat mencari id_detail_pelatihan: $e");
+      _showAlertDialog(context, "Error saat mencari id_detail_pelatihan");
+      return null;
+    }
+  }
+
+  void _showAlertDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Peringatan"),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: Text("OK"),
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Ya'),
             ),
           ],
         );
@@ -152,8 +323,6 @@ class _InputPelatihanState extends State<InputPelatihan> {
   void dispose() {
     _pelatihanSearchController.dispose();
     _vendorSearchController.dispose();
-    _periodePelatihanController.dispose();
-  
     super.dispose();
   }
 
@@ -215,7 +384,7 @@ class _InputPelatihanState extends State<InputPelatihan> {
                     if (textEditingValue.text.isEmpty) {
                       return const Iterable<String>.empty();
                     }
-                    return PelatihanList
+                    return pelatihanList
                         .where((pelatihan) => pelatihan['nama']
                             .toString()
                             .toLowerCase()
@@ -291,10 +460,19 @@ class _InputPelatihanState extends State<InputPelatihan> {
                   decoration: const InputDecoration(labelText: 'Level'),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: _periodePelatihanController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                DropdownButtonFormField<String>(
+                  value: _selectedPeriodePelatihan,
+                  items: periodeList.map((periode) {
+                    return DropdownMenuItem<String>(
+                      value: periode['tahun'],
+                      child: Text(periode['tahun']),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedPeriodePelatihan = newValue;
+                    });
+                  },
                   decoration:
                       const InputDecoration(labelText: 'Periode / Tahun'),
                 ),
@@ -316,15 +494,63 @@ class _InputPelatihanState extends State<InputPelatihan> {
                   ),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    int? idVendor = await _getIdVendor(_selectedVendorPelatihan ?? '');
+
+                    if (idVendor == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                            Text('Vendor tidak ditemukan!')),
+                      );
+                      return;
+                    }
+
+                    int? idPeriode = await _getIdPeriode(_selectedPeriodePelatihan ?? '');
+                    if (idPeriode == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                            Text('Periode tidak ditemukan!')),
+                      );
+                      return;
+                    }
+
+                    int? idPelatihan = await _getIdPelatihan(
+                        idVendor,
+                        idPeriode,
+                        _selectedPelatihan ?? '',
+                        _selectedLevelPelatihan ?? '');
+                    if (idPelatihan == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                            Text('Nama pelatihan tidak ditemukan!')),
+                      );
+                      return;
+                    }
+
+                    int? idDetailPelatihan = await _getIdDetailPelatihan(_idUser, idPelatihan);
+                    if (idDetailPelatihan == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                            Text('Pelatihan tidak ditemukan!')),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      _selectedDetailPelatihan = idDetailPelatihan.toString();
+                    });
+
+                    print("image: $_base64Image");
+                    print("ID Detail Pelatihan: $_selectedDetailPelatihan");
+
                     _showConfirmationDialog(context);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0B2F9F), // Button color
-                    foregroundColor: Colors.white, // Text color
-                  ),
-                  child: const Text('Simpan'),
-                ),
+                  child: const Text('Simpan Pelatihan'),
+                )
               ],
             ),
           ),

@@ -33,6 +33,7 @@ dependencies:
   image_picker: ^0.8.7+4
   dio: ^5.3.2
   http: ^1.2.2
+  shared_preferences: ^2.0.17
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -64,6 +65,7 @@ flutter:
   assets:
     - assets/backgroundbuttom.png
     - assets/backgroundtop.png
+    - assets/default-profile.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:sertipedia/Template/drawer.dart';
 import 'package:sertipedia/Api/api_services.dart';
 import 'package:dio/dio.dart';
-// import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InputSertifikasi extends StatefulWidget {
   const InputSertifikasi({super.key, required this.title});
@@ -17,28 +17,49 @@ class InputSertifikasi extends StatefulWidget {
 }
 
 class _InputSertifikasiState extends State<InputSertifikasi> {
+  int _idUser = 0;
+
   List<dynamic> vendorSertifikasiList = [];
-  List<dynamic> SertifikasiList = [];
+  List<dynamic> sertifikasiList = [];
+  List<dynamic> detailSertifikasiList = [];
+  List<dynamic> periodeList = [];
+
   final List<String> _jenisSertifikasiOptions = ['Profesi', 'Keahlian'];
 
   String? _selectedVendorSertifikasi;
   String? _selectedSertifikasi;
+  String? _selectedDetailSertifikasi;
+  String? _selectedPeriodeSertifikasi;
   String? _selectedJenisSertifikasi;
   String? _base64Image;
 
   final TextEditingController _sertifikasiSearchController =
       TextEditingController();
   final TextEditingController _vendorSearchController = TextEditingController();
-  final TextEditingController _periodeSertifikasiController =
-      TextEditingController();
   final TextEditingController _noSertifikasiController =
       TextEditingController();
-  
-   // Ambil data Pelatihan
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVendorSertifikasi();
+    _fetchSertifikasi();
+    _fetchDetailSertifikasi();
+    _fetchPeriodeList();
+    _loadIdUser();
+  }
+
+  Future<void> _loadIdUser() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _idUser = prefs.getInt('id_user') ?? 0;
+    });
+  }
+
+  // Ambil data Pelatihan
   Future<void> _fetchVendorSertifikasi() async {
     try {
-      final response =
-          await Dio().get(url_vendors); 
+      final response = await Dio().get(url_vendors);
       if (response.statusCode == 200) {
         var vendors = response.data as List;
         var filteredVendors = vendors.where((vendor) {
@@ -47,8 +68,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
         }).toList();
 
         setState(() {
-          vendorSertifikasiList =
-              filteredVendors;
+          vendorSertifikasiList = filteredVendors;
         });
       } else {
         print("Gagal memuat data vendor sertifikasi");
@@ -60,11 +80,10 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
 
   Future<void> _fetchSertifikasi() async {
     try {
-      final response =
-          await Dio().get(url_sertifikasis); 
+      final response = await Dio().get(url_sertifikasis);
       if (response.statusCode == 200) {
         setState(() {
-          SertifikasiList = response.data as List; 
+          sertifikasiList = response.data as List;
         });
       } else {
         print("Gagal memuat data sertifikasi");
@@ -74,11 +93,70 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchVendorSertifikasi(); 
-    _fetchSertifikasi();
+  Future<void> _fetchDetailSertifikasi() async {
+    try {
+      final response = await Dio().get(url_d_sertifikasis);
+      if (response.statusCode == 200) {
+        setState(() {
+          detailSertifikasiList = response.data as List;
+        });
+      } else {
+        print("Gagal memuat data Sertiifkasi");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Sertifikasi: $e");
+    }
+  }
+
+  Future<void> _fetchPeriodeList() async {
+    try {
+      final response = await Dio().get(url_periode); // Make the API call
+      if (response.statusCode == 200) {
+        setState(() {
+          periodeList =
+              response.data as List; // Store the periods in periodeList
+        });
+      } else {
+        print("Gagal memuat data Periode");
+      }
+    } catch (e) {
+      print("Error saat mengambil data Periode: $e");
+    }
+  }
+
+  Future<void> _updateDatatoServer() async {
+    if (_base64Image != null && _selectedDetailSertifikasi != null) {
+      try {
+        final url =
+            url_d_sertifikasi_update + _selectedDetailSertifikasi.toString();
+        final response = await Dio().put(
+          url,
+          data: {
+            'no_sertifikasi': _noSertifikasiController.text,
+            'image': _base64Image,
+          },
+        );
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Data berhasil diupload!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Data gagal diupload!')),
+          );
+        }
+      } catch (e) {
+        print('Error: $e');
+        // Display an error message if an exception occurs
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Belum memasukkan gambar!')),
+      );
+    }
   }
 
   Future<void> _uploadPhoto() async {
@@ -139,10 +217,93 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
               child: const Text('Batal'),
             ),
             TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _updateDatatoServer();
+              },
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<int?> _getIdVendor(String namaVendor) async {
+    try {
+      final vendor = vendorSertifikasiList.firstWhere(
+        (v) => v['nama'].toString().toLowerCase() == namaVendor.toLowerCase(),
+        orElse: () => null,
+      );
+      return vendor != null ? vendor['id_vendor'] : null;
+    } catch (e) {
+      print("Error saat mencari id_vendor: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdPeriode(String tahun) async {
+    try {
+      final periode = periodeList.firstWhere(
+        (p) => p['tahun'].toString().toLowerCase() == tahun.toLowerCase(),
+        orElse: () => null,
+      );
+      return periode != null ? periode['id_periode'] : null;
+    } catch (e) {
+      print("Error saat mencari id_periode: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdSertifikasi(
+      int idVendor, int idPeriode, String namaSertifikasi, String level) async {
+    try {
+      final sertifikasi = sertifikasiList.firstWhere(
+        (p) =>
+            p['id_vendor'] == idVendor &&
+            p['id_periode'] == idPeriode &&
+            p['nama'].toString().toLowerCase() ==
+                namaSertifikasi.toLowerCase() &&
+            p['jenis_sertifikasi'].toString().toLowerCase() ==
+                level.toLowerCase(),
+        orElse: () => null,
+      );
+      return sertifikasi != null ? sertifikasi['id_sertifikasi'] : null;
+    } catch (e) {
+      print("Error saat mencari id_sertifikasi: $e");
+      return null;
+    }
+  }
+
+  Future<int?> _getIdDetailSertifikasi(int idUser, int idSertifikasi) async {
+    try {
+      final detailSertifikasi = detailSertifikasiList.firstWhere(
+        (p) => p['id_user'] == idUser && p['id_sertifikasi'] == idSertifikasi,
+        orElse: () => null,
+      );
+      return detailSertifikasi != null
+          ? detailSertifikasi['id_detail_sertifikasi']
+          : null;
+    } catch (e) {
+      print("Error saat mencari id_detail_sertifikasi: $e");
+      _showAlertDialog(context, "Error saat mencari id_detail_sertifikasi");
+      return null;
+    }
+  }
+
+  void _showAlertDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Peringatan"),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: Text("OK"),
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Ya'),
             ),
           ],
         );
@@ -154,8 +315,6 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
   void dispose() {
     _sertifikasiSearchController.dispose();
     _vendorSearchController.dispose();
-    _periodeSertifikasiController.dispose();
-    _noSertifikasiController.dispose();
     super.dispose();
   }
 
@@ -201,9 +360,7 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
           // Scrollable content with padding to avoid overlapping the background image
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0).copyWith(
-                  bottom:
-                      130.0), // Extra bottom padding to avoid overlap with background
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -222,12 +379,11 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                       if (textEditingValue.text.isEmpty) {
                         return const Iterable<String>.empty();
                       }
-                      return SertifikasiList.where((sertifikasi) =>
-                              sertifikasi['nama']
-                                  .toString()
-                                  .toLowerCase()
-                                  .contains(
-                                      textEditingValue.text.toLowerCase()))
+                      return sertifikasiList
+                          .where((sertifikasi) => sertifikasi['nama']
+                              .toString()
+                              .toLowerCase()
+                              .contains(textEditingValue.text.toLowerCase()))
                           .map((sertifikasi) => sertifikasi['nama'].toString());
                     },
                     onSelected: (String selectedSertifikasi) {
@@ -245,10 +401,17 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                         controller: textEditingController,
                         focusNode: focusNode,
                         decoration: const InputDecoration(
-                          labelText: 'Nama Pelatihan',
+                          labelText: 'Nama Sertifikasi',
                         ),
                       );
                     },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _noSertifikasiController,
+                    decoration: const InputDecoration(
+                      labelText: 'No Sertifikasi',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Autocomplete<String>(
@@ -297,24 +460,30 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                         _selectedJenisSertifikasi = newValue;
                       });
                     },
-                    decoration: const InputDecoration(labelText: 'Jenis'),
+                    decoration: const InputDecoration(labelText: 'Level'),
                   ),
-                  TextField(
-                    controller: _periodeSertifikasiController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(labelText: 'Periode / Tahun'),
-                  ),
-                  TextField(
-                    controller: _noSertifikasiController,
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _selectedPeriodeSertifikasi,
+                    items: periodeList.map((periode) {
+                      return DropdownMenuItem<String>(
+                        value: periode['tahun'],
+                        child: Text(periode['tahun']),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedPeriodeSertifikasi = newValue;
+                      });
+                    },
                     decoration:
-                        const InputDecoration(labelText: 'No. Sertifikasi'),
+                        const InputDecoration(labelText: 'Periode / Tahun'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   ElevatedButton.icon(
                     onPressed: _uploadPhoto,
                     icon: const Icon(Icons.upload),
-                    label: const Text('Upload Sertifikasi'),
+                    label: const Text('Upload Pelatihan'),
                   ),
                   if (_base64Image != null)
                     Padding(
@@ -326,18 +495,81 @@ class _InputSertifikasiState extends State<InputSertifikasi> {
                         fit: BoxFit.cover,
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: () {
-                      _showConfirmationDialog(
-                          context); // Show confirmation dialog
+                    onPressed: () async {
+                      int? idVendor =
+                          await _getIdVendor(_selectedVendorSertifikasi ?? '');
+                     
+                      if (_noSertifikasiController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No Sertifikasi belum diisi!'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (idVendor == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Vendor tidak ditemukan!')),
+                        );
+                        return;
+                      }
+
+                      int? idPeriode = await _getIdPeriode(
+                          _selectedPeriodeSertifikasi ?? '');
+                      print('id periode : $idPeriode');
+                      if (idPeriode == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Periode tidak ditemukan!')),
+                        );
+                        return;
+                      }
+
+                      int? idSertifikasi = await _getIdSertifikasi(
+                          idVendor,
+                          idPeriode,
+                          _selectedSertifikasi ?? '',
+                          _selectedJenisSertifikasi ?? '');
+                      print("id sertifiki : $idSertifikasi");
+
+                      if (idSertifikasi == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Nama sertifikasi tidak ditemukan!')),
+                        );
+                        return;
+                      }
+
+                      int? idDetailSertifikasi =
+                          await _getIdDetailSertifikasi(_idUser, idSertifikasi);
+                      print('id detail sertifikasi : $idDetailSertifikasi');
+                      if (idDetailSertifikasi == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Detail Sertifikasi tidak ditemukan!')),
+                        );
+                        return;
+                      }
+
+                      setState(() {
+                        _selectedDetailSertifikasi =
+                            idDetailSertifikasi.toString();
+                      });
+
+                      print("image: $_base64Image");
+                      print(
+                          "ID Detail Sertifikasi: $_selectedDetailSertifikasi");
+
+                      _showConfirmationDialog(context);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B2F9F), // Button color
-                      foregroundColor: Colors.white, // Text color
-                    ),
-                    child: const Text('Simpan'),
-                  ),
+                    child: const Text('Simpan Sertifikasi'),
+                  )
                 ],
               ),
             ),
