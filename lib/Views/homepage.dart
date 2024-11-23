@@ -1,7 +1,24 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:sertipedia/Template/drawer.dart';
 import 'package:sertipedia/Api/api_services.dart';
 import 'package:dio/dio.dart';
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sertipedia',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const HomePage(title: 'Dosen Jurusan Teknologi Informasi'),
+    );
+  }
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -149,36 +166,48 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              ),
-            ),
+            Text(widget.title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w900, color: Colors.white)),
             const Padding(padding: EdgeInsets.only(right: 17.5)),
           ],
         ),
       ),
       drawer: const DrawerLayout(),
-      resizeToAvoidBottomInset:
-          false, // Prevent body from resizing above keyboard
-      body: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Image.asset(
-              'assets/backgroundbuttom.png',
-              fit: BoxFit.cover,
-              height: 110,
-            ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage.isNotEmpty
+              ? Center(child: Text(errorMessage))
+              : buildLecturersList(),
+    );
+  }
+
+  Widget buildLecturersList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: lecturers.length,
+      itemBuilder: (context, index) {
+        final lecturer = lecturers[index];
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: lecturer['image'] != ''
+                  ? NetworkImage(lecturer['image'])
+                  : const AssetImage('assets/default_image.png')
+                      as ImageProvider,
+              radius: 30,
+            ),
+            title: Text(
+              lecturer['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 5),
                 const Text(
@@ -308,9 +337,17 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+            trailing: ElevatedButton(
+              onPressed: () => showLecturerDetail(context, lecturer),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B2F9F),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Detail'),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

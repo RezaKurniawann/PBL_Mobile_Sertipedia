@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sertipedia/Template/drawer.dart';
@@ -9,6 +11,7 @@ import 'dart:convert';
 
 class Profile extends StatefulWidget {
   const Profile({super.key, required this.title});
+
   final String title;
 
   @override
@@ -211,7 +214,6 @@ class _ProfileState extends State<Profile> {
         ),
       ),
       drawer: const DrawerLayout(),
-      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned(
@@ -273,6 +275,59 @@ class _ProfileState extends State<Profile> {
                               constraints: BoxConstraints(),
                               iconSize: 30,
                             ),
+                            imageUrl.isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 75,
+                                    backgroundImage: NetworkImage(imageUrl),
+                                  )
+                                : const CircleAvatar(
+                                    radius: 75,
+                                    child: Icon(Icons.person, size: 75),
+                                  ),
+                            buildTextField(
+                              controller: _nameController,
+                              label: 'Name',
+                              enabled: isEditable,
+                            ),
+                            buildTextField(
+                              controller: _usernameController,
+                              label: 'Username',
+                              enabled: isEditable,
+                            ),
+                            buildTextField(
+                              controller: _nipController,
+                              label: 'NIP',
+                              enabled: isEditable,
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                if (isEditable)
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        isEditable = false; // Menyembunyikan field edit
+                                      });
+                                    },
+                                    child: const Text("Cancel"),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 15), backgroundColor: Colors.red, // Warna merah untuk cancel
+                                    ),
+                                  ),
+                                ElevatedButton(
+                                  onPressed: isEditable ? _updateUserData : () {
+                                    setState(() {
+                                      isEditable = true;  // Menyalakan mode edit
+                                    });
+                                  },
+                                  child: Text(isEditable ? 'Save' : 'Edit'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 15), backgroundColor: isEditable ? Colors.green : Color(0xFF0D6EFD), // Warna hijau untuk save, biru untuk edit
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
                           ],
                         ),
                         const SizedBox(height: 10),
